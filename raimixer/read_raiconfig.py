@@ -47,7 +47,7 @@ def get_raiblocks_config() -> Dict[str, str]:
     config['control_enabled'] = rai_config['rpc']['enable_control']
     config['rpc_address'] = rai_config['rpc']['address']
     config['rpc_port'] = rai_config['rpc']['port']
-    config['reps'] = rai_config['node']['preconfigured_representatives']
+    config['representatives'] = rai_config['node']['preconfigured_representatives']
 
     return config
 

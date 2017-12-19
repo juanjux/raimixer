@@ -15,7 +15,7 @@
 
 import json
 import time
-from typing import Tuple, List, Dict, Any
+from typing import Tuple, List, Dict, Any, Optional
 
 import requests
 
@@ -38,9 +38,13 @@ class RaiRPC:
         res = self._callrpc(action='account_balance', account=account)
         return int(res['balance']), int(res['pending'])
 
-    def create_account(self) -> str:
-        res = self._callrpc(action='account_create', wallet=self.wallet)
-        return res['account']
+    def create_account(self, representative: Optional[str] = None) -> str:
+        account = self._callrpc(action='account_create', wallet=self.wallet)['account']
+
+        if representative:
+            self._callrpc(action='account_representative_set', wallet=self.wallet,
+                          account=account, representative=representative)
+        return account
 
     def delete_account(self, account: str) -> bool:
         res = self._callrpc(action='account_remove', wallet=self.wallet, account=account)

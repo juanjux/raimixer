@@ -16,17 +16,16 @@ number of mixer accounts and send the amount between them and the original
 source account in a number of (configurable) mixing rounds until finally all the
 funds are sent to the destination account. 
 
-This takes
-advantage of the fast and feeless transactions of the awesome [RaiBlocks
-cryptocurrency](https://raiblocks.net).
+This takes advantage of the fast and feeless transactions of the awesome
+[RaiBlocks cryptocurrency](https://raiblocks.net).
 
 ## Is this safe? 
 
 Depends on your definition of safe. This probably won't protect you from a well
-done blockchain analysis from professionals. But since they can only get a
+done blockchain analysis by professionals. But since they can only get a
 certain % of certainly, that lowers as you increase the number of mixing rounds
 and accounts, it's very improbable that it could be used as solid evidence in a
-trial, for example.
+trial, for example. 
 
 In case you missed the warning in the first section, please note that this is
 currently a very early release and some things will improve and there could be
@@ -47,13 +46,15 @@ first transactions before mixing came from knew exchanges accounts and thus can
 guess than the transactions following that one are to the mixers accounts.
 RaiShaker avoids that problem mixing the funds from its users together.
 
-One advantage this have over an online mixer is that you don't have the trust
-the online mixer operator (that will know where the funds came from and where
-they'll go). Another one is that is probably faster since the online mixers 
-have to wait until they have a minimum amount of users to start the mixing
-process.
+But this also have some advantages over an online mixer:
 
-To be double safe you could use RaiMix before sending to RaiShaker!
+- You don't have the trust the online mixer operator (that will know where the
+  funds came from and where they'll go). 
+  
+- This is probably faster since the online mixers have to wait until they have a
+  minimum amount of users to start the mixing process.
+
+To be double safe you could use RaiMix before sending to RaiShaker.
 
 ## How much time does it take?
 
@@ -91,16 +92,20 @@ python raimix.py --help
 Example:
 
 ```bash
-python raimix.py --wallet=<your wallet from your config.json>
---source_acc=xrb_<acount where you have the funds>
---dest_acc=xrb_<destination account>
---amount=800m # exact amount needed in the destination, use m for mrai, k for
-krai
---initial_amount=1000m # (recommended) a higher amount to make analysis harder; excess will be returned
---dest_from_multiple # send from several mixing accounts to the destination (default: send from only one)
---num_mixers=4 # number of mixing accounts to create (default=4). Higher = slower but safer.
---num_rounds=2 # number of mixing rounds to do (default=2). Ditto.
+python raimix.py <destination_account> <ammount>
 ```
+
+This will use the default wallet and accounts as specified in RaiBlock's
+`config.json` file. You can use the options `--wallet` and `--source_acc` to 
+set specific ones if you want.
+
+The amount must end with "m" for megarais or "k" for kilorais. Smaller amounts
+are not supported at the moment (but you can use decimals).
+
+Another interesting option that you could want to consider is
+`--initial_amount`. This will make the mixing send the specified bigger amount
+than the one actually needed to make analysis harder; excess amount will be
+returned to the source account at the end of the process.
 
 Mixing accounts will be deleted at the end of the operation if everything
 worked.
@@ -112,6 +117,50 @@ make out mixing accounts from previous sessions from user-created accounts, so
 if you want to keep some amount in other accounts you'll have to move the 
 fund manually (or run this and then restore the funds later, `--clean` won't
 delete any account.)
+
+## Other options
+
+```bash
+python raimix.py --help
+
+usage: raimix.py [-h] [-w WALLET] [-s SOURCE_ACC] [-c] [-i INITIAL_AMOUNT]
+                 [-m] [-n NUM_MIXERS] [-r NUM_ROUNDS] [-u RPC_ADDRESS]
+                 [-p RPC_PORT]
+                 [dest_acc] [amount]
+
+Mix/scramble RaiBlocks transactions between random local accounts before
+sending
+
+positional arguments:
+  dest_acc              Destination account (mandatory except on --clean)
+  amount                Amount. Use m, k prefixes for mega/kilo rai (mandatory
+                        except for --clean)
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -w WALLET, --wallet WALLET
+                        User wallet ID (default: from Rai config)
+  -s SOURCE_ACC, --source_acc SOURCE_ACC
+                        Source account (default: from Rai config)
+  -c, --clean           Move everything to the source account. Useful after
+                        node crashes.
+  -i INITIAL_AMOUNT, --initial_amount INITIAL_AMOUNT
+                        Initial amount to mix. Helps masking transactions.
+                        Must be greater than "amount". Rest will be returned
+                        to source account (default: equal to "amount")
+  -m, --dest_from_multiple
+                        Send to the final destination from various mixing
+                        account
+  -n NUM_MIXERS, --num_mixers NUM_MIXERS
+                        Number of mixing accounts to create (default=4)
+  -r NUM_ROUNDS, --num_rounds NUM_ROUNDS
+                        Number of mixing rounds to do (default=2
+  -u RPC_ADDRESS, --rpc_address RPC_ADDRESS
+                        RPC address (default: from Rai config)
+  -p RPC_PORT, --rpc_port RPC_PORT
+                        RPC port (default: from Rai config)
+
+```
 
 ## Roadmap
 
