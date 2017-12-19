@@ -3,7 +3,7 @@
 ## IMPORTANT
 
 This is not finished. It needs more tests, a GUI, documentation, and more
-anonimity features (like selecting different delegates for every mixer account). 
+anonymity features (like selecting different delegates for every mixer account). 
 
 **It could also could eat your funds alive and leave you poor and homeless. 
 You've been warned.**
@@ -27,8 +27,9 @@ done blockchain analysis from professionals. But since they can only get a
 certain % of certainly, that lowers as you increase the number of mixing rounds
 and accounts, it's very improbable that it could be used as evidence in a trial.
 
-In case you missed the warning above, please note that this is currently a very
-early release and some things will improve. For example it doesn't 
+In case you missed the warning in the first section, please note that this is
+currently a very early release and some things will improve and there could be
+bugs.
 
 ## Won't the nodes know where the amounts are coming because of my IP?
 
@@ -50,7 +51,7 @@ To be double safe you could use this before sending to RaiShaker!
 ## How much time does it take?
 
 The bottleneck seems to be the POW and the fact that, at least on my tests, the
-node doesn't seem to paralelize RPC requests even if it's configured to use
+node doesn't seem to parallelize RPC requests even if it's configured to use
 several threads. So it'll depend on the number of transactions, which in turn
 will depend on the number of mixing accounts and mixing rounds configured. 
 
@@ -76,8 +77,8 @@ Example:
 python raimix.py --wallet=<your wallet from your config.json>
 --source_acc=xrb_<acount where you have the funds>
 --dest_acc=xrb_<destination account>
---amount=800k # exact amount needed in the destination
---initial_amount=100m # (recommended) a higher amount to make analysis harder; excess will be returned
+--amount=800m # exact amount needed in the destination
+--initial_amount=1000m # (recommended) a higher amount to make analysis harder; excess will be returned
 --dest_from_multiple # send from several mixing accounts to the destination (default: send from only one)
 --num_mixers=4 # number of mixing accounts to create (default=4). Higher = slower but safer.
 --num_rounds=2 # number of mixing rounds to do (default=2). Ditto.
@@ -89,3 +90,7 @@ worked.
 If the RaiBlocks node or wallet crashes during the operation (which sometimes
 happens), you can use the `--clean` option to recover all amounts in all the
 accounts except the one you set as `--source_acc`. Please note that this won't 
+
+## I want to throw XRB at you!
+
+xrb_3zq1yrhgij8ix35yf1khehzwfiz9ojjotndtqprpyymixxwxnkhn44qgqmy5

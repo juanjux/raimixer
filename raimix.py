@@ -24,6 +24,7 @@ import rairpc
 # TODO: precalculate the mixin rounds so I can show a nice progress bar of each round
 # TODO: read wallet from user directory config
 # TODO: Retrieve representatives. Change representative of every created account.
+# TODO: kosher Python package
 
 
 class RaiMixerException(Exception): pass
