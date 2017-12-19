@@ -3,7 +3,7 @@
 ## IMPORTANT
 
 This is not finished. It needs more tests, a GUI, documentation, and more
-anonymity features (like selecting different delegates for every mixer account). 
+anonymity features.
 
 **It could also could eat your funds alive and leave you poor and homeless. 
 You've been warned.**
@@ -54,7 +54,7 @@ But this also have some advantages over an online mixer:
 - This is probably faster since the online mixers have to wait until they have a
   minimum amount of users to start the mixing process.
 
-To be double safe you could use RaiMix before sending to RaiShaker.
+To be double safe you could use RaiMixer before sending to RaiShaker.
 
 ## How much time does it take?
 
@@ -70,11 +70,8 @@ randomized some things, but a typical 4-accounts, 2 rounds mixing produces about
 
 ## Installation
 
-Currently there is no setuptools/pip boilerplate (this will come soon), you 
-just download the repo and do:
-
 ```bash
-pip install -r requirements.txt
+pip install raimixer
 ```
 
 ## How to use
@@ -83,16 +80,13 @@ Note: **Python 3.6 required**.
 
 Edit your `~/RaiBlocks/config.json` and set to `"true"` the settings called
 `enable_control` and `rpc_enable`. The close and reopen your wallet or node 
-and unlock it. It must remain running while this script runs.
+and unlock it. It must remain running while this script runs. The program will
+remind you if either of these things is not done.
+
+Simple example:
 
 ```bash
-python raimix.py --help
-```
-
-Example:
-
-```bash
-python raimix.py <destination_account> <ammount>
+raimixer <destination_account> <ammount>
 ```
 
 This will use the default wallet and accounts as specified in RaiBlock's
@@ -121,20 +115,34 @@ delete any account.)
 ## Other options
 
 ```bash
-python raimix.py --help
+raimixer --help
 
-usage: raimix.py [-h] [-w WALLET] [-s SOURCE_ACC] [-c] [-i INITIAL_AMOUNT]
-                 [-m] [-n NUM_MIXERS] [-r NUM_ROUNDS] [-u RPC_ADDRESS]
-                 [-p RPC_PORT]
-                 [dest_acc] [amount]
+usage: raimixer [-h] [-w WALLET] [-s SOURCE_ACC] [-c] [-i INITIAL_AMOUNT] [-m]
+                [-n NUM_MIXERS] [-r NUM_ROUNDS] [-u RPC_ADDRESS] [-p RPC_PORT]
+                [dest_acc] [amount]
+
+ ____       _ __  __ _
+|  _ \ __ _(_)  \/  (_)_  _____ _ __
+| |_) / _` | | |\/| | \ \/ / _ \ '__|
+|  _ < (_| | | |  | | |>  <  __/ |
+|_| \_\__,_|_|_|  |_|_/_/\_\___|_|
 
 Mix/scramble RaiBlocks transactions between random local accounts before
-sending
+sending to the real destination.
+
+Example usage:
+
+raimixer xrb_3zq1yrhgij8ix35yf1khehzwfiz9ojjotndtqprpyymixxwxnkhn44qgqmy5 10xrb
+
+If this software is useful to you, consider donating to the author:
+
+xrb_3qssjmdugdwh5gyz1n8w8j94567icut5kmpyf8b8po5wwfi5sqyau3sim47w
+
+(Thank you!❤)
 
 positional arguments:
   dest_acc              Destination account (mandatory except on --clean)
-  amount                Amount. Use m, k prefixes for mega/kilo rai (mandatory
-                        except for --clean)
+  amount                Amount. Use xrb/mrai or krai sufixes for mega/kilo rai (mandatory except for --clean)
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -142,15 +150,12 @@ optional arguments:
                         User wallet ID (default: from Rai config)
   -s SOURCE_ACC, --source_acc SOURCE_ACC
                         Source account (default: from Rai config)
-  -c, --clean           Move everything to the source account. Useful after
-                        node crashes.
+  -c, --clean           Move everything to the source account. Useful after node crashes.
   -i INITIAL_AMOUNT, --initial_amount INITIAL_AMOUNT
-                        Initial amount to mix. Helps masking transactions.
-                        Must be greater than "amount". Rest will be returned
-                        to source account (default: equal to "amount")
+                        Initial amount to mix. Helps masking transactions. Must be greater
+                        than "amount". Rest will be returned to source account (default: equal to "amount")
   -m, --dest_from_multiple
-                        Send to the final destination from various mixing
-                        account
+                        Send to the final destination from various mixing account
   -n NUM_MIXERS, --num_mixers NUM_MIXERS
                         Number of mixing accounts to create (default=4)
   -r NUM_ROUNDS, --num_rounds NUM_ROUNDS
@@ -159,15 +164,10 @@ optional arguments:
                         RPC address (default: from Rai config)
   -p RPC_PORT, --rpc_port RPC_PORT
                         RPC port (default: from Rai config)
-
 ```
 
 ## Roadmap
 
-- Read the wallet and the delegates from the RailBlock's config file.
-- Select the account with a greater balance as sender account if not 
-  specified.
-- Python package, publish on pypi.
 - Optional Qt GUI.
 - Windows portable .exe file.
 - Testing framework emulating the node.

@@ -22,7 +22,7 @@ def parse_options(raiconfig: Dict[str, Any]) -> Any:
 
         Example usage:
 
-        python raimixer.py xrb_3zq1yrhgij8ix35yf1khehzwfiz9ojjotndtqprpyymixxwxnkhn44qgqmy5 10xrb
+        raimixer xrb_3zq1yrhgij8ix35yf1khehzwfiz9ojjotndtqprpyymixxwxnkhn44qgqmy5 10xrb
 
         If this software is useful to you, consider donating to the author's rai-funds!
 
