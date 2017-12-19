@@ -42,7 +42,7 @@ originated in a peer or simply propagated.
 Not really. The advantage of an online mixer like
 [RaiShaker](https://raishaker.net/) is that it mixes amounts from different
 users. So even while nodes can't know if different accounts are from the same or
-different persons, an comprehensive analysis could see if all the funds from the
+different persons, a comprehensive analysis could see if all the funds from the
 first transactions before mixing came from knew exchanges accounts and thus can
 guess than the transactions following that one are to the mixers accounts.
 RaiShaker avoids that problem mixing the funds from its users together.
@@ -94,7 +94,7 @@ Example:
 python raimix.py --wallet=<your wallet from your config.json>
 --source_acc=xrb_<acount where you have the funds>
 --dest_acc=xrb_<destination account>
---amount=800m # exact amount needed in the destination, use m for mrai or k for
+--amount=800m # exact amount needed in the destination, use m for mrai, k for
 krai
 --initial_amount=1000m # (recommended) a higher amount to make analysis harder; excess will be returned
 --dest_from_multiple # send from several mixing accounts to the destination (default: send from only one)

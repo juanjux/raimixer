@@ -96,6 +96,9 @@ class RaiRPC:
     def raw_to_mrai(self, amount_raw: int) -> float:
         return amount_raw / MRAI_TO_RAW
 
+    def wallet_locked(self) -> bool:
+        return self._callrpc(action='wallet_locked', wallet=self.wallet)['locked'] == '1'
+
     def _get_wallet(self) -> str:
         return self._callrpc(action='account_info', account=self.account)['frontier']
 

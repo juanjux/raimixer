@@ -16,7 +16,7 @@
 import sys
 import random
 from pprint import pprint
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Any
 
 import rairpc
 
@@ -28,10 +28,14 @@ import rairpc
 
 
 class RaiMixerException(Exception): pass
+class WalletLockedException(Exception): pass
 
 
 class RaiMixer:
-    def __init__(self, wallet: str, num_mix_accounts=5, num_rounds=4) -> None:
+    # TODO: define better arguments for init and start, or remove start()
+
+    def __init__(self, wallet: str, num_mix_accounts=5, num_rounds=4,
+                 rpc: Optional[rairpc.RaiRPC] = None) -> None:
 
         assert(num_mix_accounts > 1)
         assert(num_rounds > 0)
@@ -43,7 +47,7 @@ class RaiMixer:
         self.mix_accounts: List[str] = []
         self.balances: Dict[str, int] = {}
         self.tx_counter = 0
-        self.rpc: Optional[rairpc.RaiRPC] = None
+        self.rpc: Optional[rairpc.RaiRPC] = rpc
 
     def start(self, orig_account: str, dest_account: str, dest_balance: int,
               orig_balance: int, final_send_from_multiple = False) -> None:
@@ -57,7 +61,12 @@ class RaiMixer:
         self.dest_balance = dest_balance
         self.final_send_from_multiple = final_send_from_multiple
 
-        self.rpc = rairpc.RaiRPC(self.orig_account, self.wallet)
+        if self.rpc is None:
+            self.rpc = rairpc.RaiRPC(self.orig_account, self.wallet)
+
+        if self.rpc.wallet_locked():
+            raise WalletLockedException()
+
         self.mix_accounts = self._generate_accounts(self.num_mix_accounts)
 
         self._load_balances()
@@ -224,29 +233,49 @@ class RaiMixer:
         return [tosend[i] for i in tosend.keys()]
 
 
-def parse_options():
+def parse_options(raiconfig: Dict[str, Any]) -> Any:
     from argparse import ArgumentParser
 
-    # FIXME: better description...
-    parser = ArgumentParser(description='Mix amounts before sending')
-    parser.add_argument('-w', '--wallet', help='User wallet ID', required=True)
-    parser.add_argument('-s', '--source_acc', help='Source account', required=True)
-    parser.add_argument('-d', '--dest_acc', help='Destination account')
-    parser.add_argument('-c', '--clean', action='store_true', default=False,
-            help='Move everything to the source account. Useful after node crashes.')
-    parser.add_argument('-a', '--amount',
-            help='Amount. Use m, k prefixes for mega/kilo rai')
-    parser.add_argument('-i', '--initial_amount',
-            help='Initial amount to mix. Helps masking transactions. Must be greater\n'
-                 'than --amount. Rest will be returned to source account')
-    parser.add_argument('-m', '--dest_from_multiple', action='store_true', default=False,
-            help='Send to the final destination from various mixing account')
-    parser.add_argument('-n', '--num_mixers', type=int, default=4,
-            help='Number of mixing accounts to create (default=4)')
-    parser.add_argument('-r', '--num_rounds', type=int, default=2,
-            help='Number of mixing rounds to do (default=2')
+    parser = ArgumentParser(
+        description='Mix/scramble RaiBlocks transactions between random '
+                    'local accounts before sending'
+    )
 
-    return parser.parse_args()
+    parser.add_argument('dest_acc', type=str, nargs='?',
+        help='Destination account (mandatory except on --clean)')
+
+    parser.add_argument('amount', type=str, nargs='?',
+        help='Amount. Use m, k prefixes for mega/kilo rai (mandatory except for --clean)')
+
+    parser.add_argument('-w', '--wallet', type=str, default=raiconfig['wallet'],
+        help='User wallet ID (default: from Rai config)')
+
+    parser.add_argument('-s', '--source_acc', type=str, default=raiconfig['default_account'],
+        help='Source account (default: from Rai config)')
+
+    parser.add_argument('-c', '--clean', action='store_true', default=False,
+        help='Move everything to the source account. Useful after node crashes.')
+
+    parser.add_argument('-i', '--initial_amount', type=str,
+        help='Initial amount to mix. Helps masking transactions. Must be greater\n'
+        'than "amount". Rest will be returned to source account (default: equal to "amount")')
+
+    parser.add_argument('-m', '--dest_from_multiple', action='store_true', default=False,
+        help='Send to the final destination from various mixing account')
+
+    parser.add_argument('-n', '--num_mixers', type=int, default=4,
+        help='Number of mixing accounts to create (default=4)')
+
+    parser.add_argument('-r', '--num_rounds', type=int, default=2,
+        help='Number of mixing rounds to do (default=2')
+
+    parser.add_argument('-u', '--rpc_address', type=str, default=raiconfig['rpc_address'],
+        help='RPC address (default: from Rai config)')
+
+    parser.add_argument('-p', '--rpc_port', type=str, default=raiconfig['rpc_port'],
+        help='RPC port (default: from Rai config)')
+
+    return parser
 
 
 def clean(wallet, account):
@@ -265,10 +294,6 @@ def clean(wallet, account):
 
 
 def convert_amount(amount):
-    if not amount:
-        print('--amount option missing')
-        sys.exit(1)
-
     amount_unit = amount[-1]
 
     if '.' in amount or ',' in amount:
@@ -289,22 +314,30 @@ def convert_amount(amount):
 
 
 def main():
-    options = parse_options()
+    from read_raiconfig import get_raiblocks_config
+    from requests.exceptions import ConnectionError
+
+    raiconfig = get_raiblocks_config()
+    parser = parse_options(raiconfig)
+    options = parser.parse_args()
+
     if options.clean:
+        # XXX wrap errors
         clean(options.wallet, options.source_acc)
         sys.exit(0)
 
-    if not options.wallet:
-        print('--wallet option is mandatory')
-        sys.exit(1)
-
-    if not options.source_acc or not options.dest_acc:
-        print('--source_acc and --dest_acc are mandatory')
+    if not options.dest_acc:
+        print('"dest_acc" option is mandatory')
+        parser.print_help()
         sys.exit(1)
 
     if not options.amount:
-        print('--amount is mandatory')
+        print('"amount" option is mandatory')
+        parser.print_help()
         sys.exit(1)
+
+    if '::1' in options.rpc_address:
+        options.rpc_address = options.rpc_address.replace('::1', '[::1]')
 
     send_amount = convert_amount(options.amount)
 
@@ -313,11 +346,22 @@ def main():
     else:
         start_amount = send_amount
 
-    mixer = RaiMixer(options.wallet, num_mix_accounts=options.num_mixers,
-                     num_rounds=options.num_rounds)
+    rpc = rairpc.RaiRPC(options.source_acc, options.wallet,
+                        options.rpc_address, options.rpc_port)
 
-    mixer.start(options.source_acc, options.dest_acc, send_amount,
-                start_amount, final_send_from_multiple=options.dest_from_multiple)
+    mixer = RaiMixer(options.wallet, num_mix_accounts=options.num_mixers,
+                     num_rounds=options.num_rounds, rpc=rpc)
+
+    try:
+        mixer.start(options.source_acc, options.dest_acc, send_amount,
+                    start_amount, final_send_from_multiple=options.dest_from_multiple)
+    except ConnectionError:
+        print('Error: could not connect to the node, is the wallet running and '
+              'unlocked?')
+        sys.exit(1)
+    except WalletLockedException:
+        print('Error: wallet is locked. Please unlock it before using this')
+        sys.exit(1)
 
 
 if __name__ == '__main__':
