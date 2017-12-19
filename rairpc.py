@@ -1,19 +1,32 @@
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+# Copyright 2017 Juanjo Alvarez
+
 import json
 import time
-from pprint import pprint
 from typing import Tuple, List, Dict, Any
 
 import requests
 
 class RaiRPCException(Exception): pass
 
-# TODO: Retrieve representatives. Change representative of every created account.
-
 WAIT_TIMEOUT = 20
 MRAI_TO_RAW = 1000000000000000000000000000000
+KRAI_TO_RAW = MRAI_TO_RAW // 1000
 
 class RaiRPC:
-    def __init__(self, account, wallet, address='[::1]', port='7076'):
+    def __init__(self, account, wallet, address='[::1]', port='7076') -> None:
         assert(account)
         assert(wallet)
 
@@ -51,18 +64,16 @@ class RaiRPC:
         self.send(source_acc, dest_acc, amount)
 
         finished = False
-        sleep = 1.0
+        sleep = 0.1
         total_wait = 0.0
 
         while not finished:
             time.sleep(sleep)
-            print('DEBUG Waiting for the POW and receive block to show on the network...')
             _, pending = self.account_balance(dest_acc)
             if pending > 0:
                 self.receive(dest_acc)
 
             while not finished:
-                print('DEBUG Waiting for the POW of the send block to finish...')
                 time.sleep(sleep)
                 total_wait += sleep
 
@@ -75,6 +86,9 @@ class RaiRPC:
 
             if total_wait > WAIT_TIMEOUT:
                 raise RaiRPCException('Timeout waiting for send block')
+
+    def list_accounts(self) -> List[str]:
+        return self._callrpc(action='account_list', wallet=self.wallet)['accounts']
 
     def mrai_to_raw(self, amount_mrai: float) -> int:
         return int(amount_mrai * MRAI_TO_RAW)
@@ -100,19 +114,7 @@ class RaiRPC:
 
 if __name__ == '__main__':
     conf_test = json.loads(open("data.json").read())
-    orig_account = conf_test["orig_account"]
-    second_account = conf_test["second_account"]
+
     wallet = conf_test["wallet"]
-
-    rpc = RaiRPC(orig_account, wallet)
-    print("BALANCE ORIG: ", rpc.account_balance(orig_account))
-    print("BALANCE DEST: ", rpc.account_balance(second_account))
-
-    tstart = time.time()
-    AMOUNT = rpc.mrai_to_raw(0.1)
-    # rpc.send_and_receive(orig_account, second_account, AMOUNT)
-    rpc.send_and_receive(second_account, orig_account, AMOUNT)
-    elapsed = time.time() - tstart
-    print("BALANCE ORIG: ", rpc.account_balance(orig_account))
-    print("BALANCE DEST: ", rpc.account_balance(second_account))
-    print("Elapsed time: {}".format(elapsed))
+    orig_account = conf_test["orig_account"]
+    rpc  = RaiRPC(orig_account, wallet)
