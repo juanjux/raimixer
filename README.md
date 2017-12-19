@@ -25,7 +25,8 @@ cryptocurrency](https://raiblocks.net).
 Depends on your definition of safe. This probably won't protect you from a well
 done blockchain analysis from professionals. But since they can only get a
 certain % of certainly, that lowers as you increase the number of mixing rounds
-and accounts, it's very improbable that it could be used as evidence in a trial.
+and accounts, it's very improbable that it could be used as solid evidence in a
+trial, for example.
 
 In case you missed the warning in the first section, please note that this is
 currently a very early release and some things will improve and there could be
@@ -46,22 +47,38 @@ first transactions before mixing came from knew exchanges accounts and thus can
 guess than the transactions following that one are to the mixers accounts.
 RaiShaker avoids that problem mixing the funds from its users together.
 
-To be double safe you could use this before sending to RaiShaker!
+One advantage this have over an online mixer is that you don't have the trust
+the online mixer operator (that will know where the funds came from and where
+they'll go). Another one is that is probably faster since the online mixers 
+have to wait until they have a minimum amount of users to start the mixing
+process.
+
+To be double safe you could use RaiMix before sending to RaiShaker!
 
 ## How much time does it take?
 
-The bottleneck seems to be the POW and the fact that, at least on my tests, the
-node doesn't seem to parallelize RPC requests even if it's configured to use
-several threads. So it'll depend on the number of transactions, which in turn
-will depend on the number of mixing accounts and mixing rounds configured. 
+The bottleneck is the small POW done on every transaction and the fact that, at
+least on my tests, the node doesn't seem to parallelize RPC requests even if
+it's configured to use several threads or receive them on different connections.
+So it'll depend on the number of transactions, which in turn will depend on the
+number of mixing accounts and mixing rounds configured. 
 
 This number of transactions can't be exactly predicted because the program
 randomized some things, but a typical 4-accounts, 2 rounds mixing produces about
 50 transactions, which on my machine take about 5 minutes to complete.
 
+## Installation
+
+Currently there is no setuptools/pip boilerplate (this will come soon), you 
+just download the repo and do:
+
+```bash
+pip install -r requirements.txt
+```
+
 ## How to use
 
-Note: Python 3.6 required.
+Note: **Python 3.6 required**.
 
 Edit your `~/RaiBlocks/config.json` and set to `"true"` the settings called
 `enable_control` and `rpc_enable`. The close and reopen your wallet or node 
@@ -77,7 +94,8 @@ Example:
 python raimix.py --wallet=<your wallet from your config.json>
 --source_acc=xrb_<acount where you have the funds>
 --dest_acc=xrb_<destination account>
---amount=800m # exact amount needed in the destination
+--amount=800m # exact amount needed in the destination, use m for mrai or k for
+krai
 --initial_amount=1000m # (recommended) a higher amount to make analysis harder; excess will be returned
 --dest_from_multiple # send from several mixing accounts to the destination (default: send from only one)
 --num_mixers=4 # number of mixing accounts to create (default=4). Higher = slower but safer.
@@ -89,8 +107,26 @@ worked.
 
 If the RaiBlocks node or wallet crashes during the operation (which sometimes
 happens), you can use the `--clean` option to recover all amounts in all the
-accounts except the one you set as `--source_acc`. Please note that this won't 
+accounts except the one you set as `--source_acc`. Please note that this can't
+make out mixing accounts from previous sessions from user-created accounts, so
+if you want to keep some amount in other accounts you'll have to move the 
+fund manually (or run this and then restore the funds later, `--clean` won't
+delete any account.)
 
-## I want to throw XRB at you!
+## Roadmap
+
+- Read the wallet and the delegates from the RailBlock's config file.
+- Select the account with a greater balance as sender account if not 
+  specified.
+- Python package, publish on pypi.
+- Optional Qt GUI.
+- Windows portable .exe file.
+- Testing framework emulating the node.
+- Better documentation.
+- Progress bars both in text and GUI mode.
+
+If you want to contribute a PR for any of these points you're more than welcome!
+
+## I want to thank you!
 
 xrb_3zq1yrhgij8ix35yf1khehzwfiz9ojjotndtqprpyymixxwxnkhn44qgqmy5
