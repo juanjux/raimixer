@@ -1,6 +1,16 @@
+<img src="https://raw.githubusercontent.com/juanjux/raimix/master/img/logo.png" 
+ alt="RaiMixer logo" title="RaiMixer" align="right" width=180px />
+
 # RaiMixer
+
+## Demo
+
+This video shows a simple session using RaiMixer to send a transaction to a destination
+account using a single round of mixing and 3 mixing accounts (18 transactions in total):
+
 <a href="https://asciinema.org/a/WObUOx2b6rvnMOe9WyARXEd2Z" target="_blank">
-<img src="https://asciinema.org/a/WObUOx2b6rvnMOe9WyARXEd2Z.png" /></a>
+   <img src="https://asciinema.org/a/WObUOx2b6rvnMOe9WyARXEd2Z.png" />
+</a>
 
 ## IMPORTANT
 

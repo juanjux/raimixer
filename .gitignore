@@ -2,3 +2,6 @@
 data.json
 __pycache__/*
 raimixer/__pycache__/*
+raimixer.egg-info/*
+restore.py
+dist/*
