@@ -1,4 +1,6 @@
 # RaiMixer
+<a href="https://asciinema.org/a/WObUOx2b6rvnMOe9WyARXEd2Z" target="_blank">
+<img src="https://asciinema.org/a/WObUOx2b6rvnMOe9WyARXEd2Z.png" /></a>
 
 ## IMPORTANT
 
