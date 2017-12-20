@@ -162,8 +162,8 @@ class RaiMixer:
             self.tx_counter -= 1
             raise
 
-        print("Sent {} from {} to {}".format(amount, orig, dest))
-        # pprint(self.balances)
+        print("\nSending {} KRAI from [...{}] to [...{}]".format(
+            amount // rairpc.KRAI_TO_RAW, orig[-8:], dest[-8:]))
 
         self._check_balances()
         assert(amount > 0)
