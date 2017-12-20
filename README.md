@@ -76,7 +76,7 @@ pip install raimixer
 
 ## How to use
 
-Note: **Python 3.6 required**.
+Note: [**Python 3.6 required**](https://www.python.org/downloads/release/python-364/).
 
 Edit your `~/RaiBlocks/config.json` and set to `"true"` the settings called
 `enable_control` and `rpc_enable`. The close and reopen your wallet or node 

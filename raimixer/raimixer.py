@@ -100,7 +100,7 @@ class RaiMixer:
 
     def _delete_accounts(self):
         for acc in self.mix_accounts:
-            assert(self.rpc.account_balance(acc) == 0)
+            assert(self.rpc.account_balance(acc)[0] == 0)
             self.rpc.delete_account(acc)
 
     def _load_balances(self) -> None:
@@ -207,8 +207,9 @@ class RaiMixer:
                                self.dest_account, self.real_tosend)
 
         # Send the rest back to the orig account
-        print('\nSending remaining balance back to the orig account...')
-        self._send_many_to_one(self.mix_accounts, self.orig_account)
+        if self.initial_tosend > self.real_tosend:
+            print('\nSending remaining balance back to the orig account...')
+            self._send_many_to_one(self.mix_accounts, self.orig_account)
 
     def _random_amounts_split(self, total: int, num_accounts: int) -> List[int]:
         # loop calculating a random amount from 0 to 1/3 of the remainder until

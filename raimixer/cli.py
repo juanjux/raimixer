@@ -68,6 +68,10 @@ def parse_options(raiconfig: Dict[str, Any]) -> Any:
 
     options = parser.parse_args()
 
+    if options.clean:
+        options.dest_acc = 'foo'
+        options.amount = 'foo'
+
     if not options.dest_acc:
         print('"dest_acc" option is mandatory')
         parser.print_help()
