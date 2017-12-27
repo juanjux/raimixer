@@ -26,7 +26,7 @@ def parse_options(raiconfig: Dict[str, Any]) -> Any:
 
         If this software is useful to you, consider donating to the author's rai-funds!
 
-        xrb_3qssjmdugdwh5gyz1n8w8j94567icut5kmpyf8b8po5wwfi5sqyau3sim47w
+        xrb_3usnd3kirzfudprd3tceauh3sejxpfm754jgnjajbttrefx9obgdqe69wfcf
 
         (Thank you!❤)
         '''

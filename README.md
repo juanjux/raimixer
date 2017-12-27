@@ -148,7 +148,7 @@ raimixer xrb_3zq1yrhgij8ix35yf1khehzwfiz9ojjotndtqprpyymixxwxnkhn44qgqmy5 10xrb
 
 If this software is useful to you, consider donating to the author:
 
-xrb_3qssjmdugdwh5gyz1n8w8j94567icut5kmpyf8b8po5wwfi5sqyau3sim47w
+xrb_3usnd3kirzfudprd3tceauh3sejxpfm754jgnjajbttrefx9obgdqe69wfcf
 
 (Thank you!❤)
 
@@ -190,4 +190,4 @@ If you want to contribute a PR for any of these points you're more than welcome!
 
 ## I want to thank you!
 
-xrb_3zq1yrhgij8ix35yf1khehzwfiz9ojjotndtqprpyymixxwxnkhn44qgqmy5
+xrb_3usnd3kirzfudprd3tceauh3sejxpfm754jgnjajbttrefx9obgdqe69wfcf
