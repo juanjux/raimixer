@@ -42,9 +42,13 @@ class RaiRPC:
         account = self._callrpc(action='account_create', wallet=self.wallet)['account']
 
         if representative:
-            self._callrpc(action='account_representative_set', wallet=self.wallet,
-                          account=account, representative=representative)
+            self.set_representative(account, representative)
+
         return account
+
+    def set_representative(self, account, representative):
+        self._callrpc(action='account_representative_set', wallet=self.wallet,
+                account=account, representative=representative)
 
     def delete_account(self, account: str) -> bool:
         res = self._callrpc(action='account_remove', wallet=self.wallet, account=account)
