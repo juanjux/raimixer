@@ -18,8 +18,6 @@ from requests import ConnectionError
 # TODO: progress bar
 # TODO: tooltips
 
-XXX_TEST_ACCOUNT = 'xrb_3zq1yrhgij8ix35yf1khehzwfiz9ojjotndtqprpyymixxwxnkhn44qgqmy5'
-
 
 def _units_combo():
     units_combo = QComboBox()
@@ -55,7 +53,6 @@ class RaimixerGUI(QMainWindow):
 
         self.create_buttons_box()
         self.create_log_box()
-        # XXX check wallet online and unlock status
 
         self.setWindowTitle('RaiMixer')
 
@@ -85,7 +82,7 @@ class RaimixerGUI(QMainWindow):
         source_lbl = QLabel('Source:')
         # Set to default account or a list selector
         self.source_combo = QComboBox()
-        # XXX RPC call to read all wallet accounts
+        # XXX RPC call to read all wallet accounts and load them here
         self.source_combo.addItem(self.raiconfig['default_account'])
         accounts_layout.addWidget(source_lbl)
         accounts_layout.addWidget(self.source_combo)
@@ -245,7 +242,7 @@ class ConfigWindow(QMainWindow):
 
         mix_numaccounts_lbl = QLabel('Accounts:')
         mix_numaccounts_spin = QSpinBox()
-        # XXX set default from settings
+        # XXX set default from loaded settings
         mix_numaccounts_spin.setValue(4)
         mix_layout.addRow(mix_numaccounts_lbl, mix_numaccounts_spin)
 
