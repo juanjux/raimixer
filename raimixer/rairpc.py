@@ -25,6 +25,7 @@ WAIT_TIMEOUT = 20
 MRAI_TO_RAW = 1000000000000000000000000000000
 KRAI_TO_RAW = MRAI_TO_RAW // 1000
 
+
 class RaiRPC:
     def __init__(self, account, wallet, address='[::1]', port='7076') -> None:
         assert(account)

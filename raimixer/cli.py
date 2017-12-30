@@ -5,6 +5,13 @@ import sys
 from textwrap import dedent
 from typing import Dict, Any
 
+HAS_GUI = True
+try:
+    import raimixer.gui
+except ImportError as e:
+    print(e)
+    HAS_GUI = False
+
 
 def parse_options(raiconfig: Dict[str, Any]) -> Any:
     from argparse import ArgumentParser, RawTextHelpFormatter
@@ -66,21 +73,30 @@ def parse_options(raiconfig: Dict[str, Any]) -> Any:
     parser.add_argument('-p', '--rpc_port', type=str, default=raiconfig['rpc_port'],
         help='RPC port (default: from Rai config)')
 
+    parser.add_argument('-g', '--gui', action='store_true', default=False,
+        help='Start the GUI (needs PyQt5 correctly installed)')
+
     options = parser.parse_args()
 
     if options.clean:
         options.dest_acc = 'foo'
         options.amount = 'foo'
 
-    if not options.dest_acc:
-        print('"dest_acc" option is mandatory')
-        parser.print_help()
-        sys.exit(1)
+    if not options.gui:
+        if not options.dest_acc:
+            print('"dest_acc" option is mandatory')
+            parser.print_help()
+            sys.exit(1)
 
-    if not options.amount:
-        print('"amount" option is mandatory')
-        parser.print_help()
-        sys.exit(1)
+        if not options.amount:
+            print('"amount" option is mandatory')
+            parser.print_help()
+            sys.exit(1)
+
+    if not options.rpc_address.startswith('['):
+        options.rpc_address = '[' + options.rpc_address
+        if not options.rpc_address.endswith(']'):
+            options.rpc_address = options.rpc_address + ']'
 
     return options
 
@@ -171,13 +187,19 @@ def main():
     raiconfig = get_raiblocks_config()
     options = parse_options(raiconfig)
 
+    if options.gui:
+        if not HAS_GUI:
+            print('Error: --gui requested but GUI cannot be started (check PyQt5 '
+                  'is correctly installed')
+            sys.exit(1)
+
+        main_gui(raiconfig, options)
+        sys.exit(0)
+
     try:
         if options.clean:
             clean(options.wallet, options.source_acc)
             sys.exit(0)
-
-        if '::1' in options.rpc_address:
-            options.rpc_address = options.rpc_address.replace('::1', '[::1]')
 
         rpc = rairpc.RaiRPC(options.source_acc, options.wallet,
                             options.rpc_address, options.rpc_port)
@@ -201,6 +223,14 @@ def main():
     except WalletLockedException:
         print('Error: wallet is locked. Please unlock it before using this')
         sys.exit(1)
+
+
+def main_gui(raiconfig, options):
+    from PyQt5.QtWidgets import QApplication
+    app = QApplication(sys.argv)
+    gui = raimixer.gui.RaimixerGUI(options, raiconfig)
+    gui.show()
+    sys.exit(app.exec_())
 
 
 if __name__ == '__main__':

@@ -1,14 +1,19 @@
 import sys
+from typing import Tuple
+
+from raimixer.rairpc import RaiRPC
+
 from PyQt5.QtWidgets import (
         QWidget, QVBoxLayout, QHBoxLayout, QFormLayout, QPushButton, QApplication,
         QGroupBox, QLabel, QLineEdit, QSpinBox, QComboBox, QTextBrowser,
         QCheckBox, QMainWindow
 )
 from PyQt5.QtGui import QFont, QFontMetrics
-from PyQt5.QtCore import QObject, pyqtSignal, pyqtSlot
+from PyQt5.QtCore import QObject, pyqtSignal, pyqtSlot, QTimer
+from requests import ConnectionError
 
+# TODO: store/load config (appdirs.user_config_dir()/raimixer_gui.json)
 # TODO: simplify the var names in the private methods
-# TODO: settings: RPC data and wallet list
 # TODO: connect with raimixer and make it work
 # TODO: progress bar
 # TODO: tooltips
@@ -25,9 +30,14 @@ def _units_combo():
 
 class RaimixerGUI(QMainWindow):
 
-    def __init__(self, parent=None):
+    def __init__(self, options, raiconfig, parent=None):
         super().__init__(parent)
+        self.options = options
+        self.raiconfig = raiconfig
         self.initUI()
+        self.wallet_connected = False
+        self.wallet_locked = True
+        self.config_window = ConfigWindow(options, raiconfig, self)
 
     def initUI(self):
         central_wid = QWidget(self)
@@ -45,25 +55,45 @@ class RaimixerGUI(QMainWindow):
 
         self.create_buttons_box()
         self.create_log_box()
-        # XXX wallet online and unlock status
+        # XXX check wallet online and unlock status
 
         self.setWindowTitle('RaiMixer')
+
+        # Timer to check & update the connection status to the wallet
+        self.wallet_conn_timer = QTimer(self)
+        self.wallet_conn_timer.timeout.connect(self.update_wallet_conn)
+        self.wallet_conn_timer.start(1000)
+
+    def update_wallet_conn(self):
+        rpc = RaiRPC(self.source_combo.currentText, self.raiconfig['wallet'],
+                     self.options.rpc_address, self.options.rpc_port)
+
+        try:
+            self.wallet_locked = rpc.wallet_locked()
+        except ConnectionError:
+            self.wallet_connected = False
+        else:
+            self.wallet_connected = True
+
+        self.connected_lbl_dyn.setText('Yes' if self.wallet_connected else 'No')
+        self.unlocked_lbl_dyn.setText('No' if self.wallet_locked else 'Yes')
 
     def create_accounts_box(self):
         accounts_groupbox = QGroupBox()
         accounts_layout = QVBoxLayout()
 
-        # XXX minimum width for 64 chars
         source_lbl = QLabel('Source:')
         # Set to default account or a list selector
-        source_combo = QComboBox()
-        source_combo.addItem(XXX_TEST_ACCOUNT)
+        self.source_combo = QComboBox()
+        # XXX RPC call to read all wallet accounts
+        self.source_combo.addItem(self.raiconfig['default_account'])
         accounts_layout.addWidget(source_lbl)
-        accounts_layout.addWidget(source_combo)
+        accounts_layout.addWidget(self.source_combo)
 
         dest_lbl = QLabel('Destination:')
-        dest_edit = QLineEdit(XXX_TEST_ACCOUNT)
+        dest_edit = QLineEdit('x' * 64)
         self._resize_to_content(dest_edit)
+
         dest_edit.setText('')
         dest_edit.setPlaceholderText('Destination account')
         accounts_layout.addWidget(dest_lbl)
@@ -116,14 +146,12 @@ class RaimixerGUI(QMainWindow):
         walletstatus_layout = QFormLayout()
 
         connected_lbl = QLabel('Connected:')
-        # XXX
-        connected_lbl_dyn = QLabel('Yes')
-        walletstatus_layout.addRow(connected_lbl, connected_lbl_dyn)
+        self.connected_lbl_dyn = QLabel('Checking')
+        walletstatus_layout.addRow(connected_lbl, self.connected_lbl_dyn)
 
         unlocked_lbl = QLabel('Unlocked:')
-        # XXX
-        unlocked_lbl_dyn = QLabel('Yes')
-        walletstatus_layout.addRow(unlocked_lbl, unlocked_lbl_dyn)
+        self.unlocked_lbl_dyn = QLabel('Checking')
+        walletstatus_layout.addRow(unlocked_lbl, self.unlocked_lbl_dyn)
 
         walletstatus_groupbox.setLayout(walletstatus_layout)
         self.mixwallet_layout.addWidget(walletstatus_groupbox)
@@ -136,8 +164,7 @@ class RaimixerGUI(QMainWindow):
         settings_btn = QPushButton('Settings')
 
         def _show_config():
-            c = ConfigWindow(self)
-            c.show()
+            self.config_window.show()
 
         settings_btn.clicked.connect(_show_config)
         buttons_layout.addWidget(mix_btn)
@@ -167,8 +194,10 @@ class RaimixerGUI(QMainWindow):
 
 class ConfigWindow(QMainWindow):
 
-    def __init__(self, parent=None):
+    def __init__(self, options, raiconfig, parent=None):
         super().__init__(parent)
+        self.options = options
+        self.raiconfig = raiconfig
         self.initUI()
 
     def initUI(self):
@@ -196,14 +225,14 @@ class ConfigWindow(QMainWindow):
         connect_layout = QVBoxLayout()
 
         addr_lbl = QLabel('Address:')
-        # XXX read from settings json
-        addr_edit = QLineEdit('::1')
+        # XXX read from settings json, default to raiblocks config
+        addr_edit = QLineEdit(self.options.rpc_address)
         connect_layout.addWidget(addr_lbl)
         connect_layout.addWidget(addr_edit)
 
         port_lbl = QLabel('Port:')
         # XXX ditto
-        port_edit = QLineEdit('7076')
+        port_edit = QLineEdit(self.options.rpc_port)
         connect_layout.addWidget(port_lbl)
         connect_layout.addWidget(port_edit)
 
@@ -239,12 +268,3 @@ class ConfigWindow(QMainWindow):
 
         buttons_groupbox.setLayout(buttons_layout)
         self.main_layout.addWidget(buttons_groupbox)
-
-
-if __name__ == '__main__':
-    app = QApplication(sys.argv)
-    # app.setApplicationName('RaiMixer')
-    gui = RaimixerGUI()
-    gui.show()
-    # settings = ConfigWindow()
-    sys.exit(app.exec_())
