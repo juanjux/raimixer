@@ -105,7 +105,7 @@ This will use the default wallet and accounts as specified in RaiBlock's
 `config.json` file. You can use the options `--wallet` and `--source_acc` to 
 set specific ones if you want.
 
-The amount must end with "m" for megarais or "k" for kilorais. Smaller amounts
+The amount must end with "mrai" for megarais or "krai" for kilorais. Smaller amounts
 are not supported at the moment (but you can use decimals).
 
 Another interesting option that you could want to consider is
