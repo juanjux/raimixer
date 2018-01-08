@@ -1,44 +1,92 @@
 from typing import Dict, Any
+from sys import platform
+import os
+import json
+
+CONFIG_FILENAME = 'raimixer_conf.json'
 
 class ConfigException(Exception):
     pass
 
 
-def search_config_path() -> str:
-    # Windows: C:\Users\<user\AppData\Local\RaiBlocks\
-    # OSX: /Users/<user>/Library/RaiBlocks/
-    # Linux: /home/<user>/RaiBlocks/
-    import os
-    from sys import platform
+def user_config_dir() -> str:
     from getpass import getuser
 
     user = getuser()
-
-    possible_path: str = ''
-
     if platform == 'darwin':
-        possible_path = f'/Users/{user}/Library/RaiBlocks'
+        return f'/Users/{user}/Library'
     elif os.name == 'posix':
-        possible_path = f'/home/{user}/RaiBlocks'
+        return f'/home/{user}'
     elif platform.startswith('win'):
-        possible_path = os.path.join(os.getenv('APPDATA'), 'Local', 'RaiBlocks')
+        return os.path.join(os.getenv('APPDATA'), 'Local')
     else:
         raise ConfigException('Unsupported OS')
 
-    real_path = os.path.join(possible_path, 'config.json')
+
+def user_raiblocks_config() -> str:
+    # Windows: C:\Users\<user\AppData\Local\RaiBlocks\
+    # OSX: /Users/<user>/Library/RaiBlocks/
+    # Linux: /home/<user>/RaiBlocks/
+
+    raiblocks_config_dir = os.path.join(user_config_dir(), 'RaiBlocks')
+
+    real_path = os.path.join(raiblocks_config_dir, 'config.json')
     if not os.path.exists(real_path) or not os.path.isfile(real_path):
         raise ConfigException(f'Could not find RaiBlocks config (tried: {real_path})')
 
     return real_path
 
 
-def get_raiblocks_config() -> Dict[str, str]:
-    import json
+def maybe_create_confdir() -> str:
+    conf_base = 'raimixer' if platform.startswith('win') else '.raimixer'
+    raimixer_config_dir = os.path.join(user_config_dir(), conf_base)
 
+    if not os.path.exists(raimixer_config_dir):
+        os.mkdir(raimixer_config_dir)
+
+    return raimixer_config_dir
+
+
+def write_raimixer_config(confdict: Dict[str, str]) -> None:
+    raimixer_conf = os.path.join(maybe_create_confdir(), CONFIG_FILENAME)
+    with open(raimixer_conf, 'w') as raimix_file:
+        raimix_file.write(json.dumps(confdict, indent=4))
+
+
+def read_raimixer_config() -> Dict[str, str]:
+    config: Dict[str, str] = {}
+    raimixer_conf = os.path.join(maybe_create_confdir(), CONFIG_FILENAME)
+
+    def write_default_config() -> Dict[str, str]:
+        rai_config = get_raiblocks_config()
+        config = {
+                'rpc_address': rai_config['rpc_address'],
+                'rpc_port': rai_config['rpc_port'],
+                'num_mixer_accounts': '4',
+                'num_mixing_rounds': '2',
+                'unit': 'mrai'
+        }
+        write_raimixer_config(config)
+        return config
+
+    if not os.path.exists(raimixer_conf):
+        config = write_default_config()
+    else:
+        with open(raimixer_conf) as raimix_file:
+            fcontent = raimix_file.read()
+            if len(fcontent.strip()) == 0:
+                config = write_default_config()
+            else:
+                config = json.loads(fcontent)
+
+    return config
+
+
+def get_raiblocks_config() -> Dict[str, str]:
     rai_config: Dict[str, Any] = {}
     config: Dict[str, Any] = {}
 
-    with open(search_config_path()) as raiconf_file:
+    with open(user_raiblocks_config()) as raiconf_file:
         rai_config = json.loads(raiconf_file.read())
 
     config['wallet'] = rai_config['wallet']

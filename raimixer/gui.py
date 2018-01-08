@@ -1,6 +1,7 @@
 import sys
 from typing import Tuple
 
+from raimixer.read_raiconfig import read_raimixer_config, write_raimixer_config
 from raimixer.rairpc import RaiRPC
 
 from PyQt5.QtWidgets import (
@@ -12,19 +13,19 @@ from PyQt5.QtGui import QFont, QFontMetrics
 from PyQt5.QtCore import QObject, pyqtSignal, pyqtSlot, QTimer
 from requests import ConnectionError
 
-# TODO: message when the mix button is pressed but not connected or unlocked.
-# TODO: store/load config (appdirs.user_config_dir()/raimixer_gui.json)
-# TODO: simplify the var names in the private methods
+# TODO: put the balance in the accounts combo next to each account
+# TODO: update the mixing+unit settings in the main window when the settings defaults are?
+# TODO: remove the mixing settings in the main GUI?
 # TODO: connect with raimixer and make it work
 # TODO: progress bar
 # TODO: tooltips
 
 
-def _units_combo():
-    units_combo = QComboBox()
-    units_combo.addItem('XRB/MRAI')
-    units_combo.addItem('KRAI')
-    return units_combo
+def _unit_combo():
+    unit_combo = QComboBox()
+    unit_combo.addItem('XRB/MRAI')
+    unit_combo.addItem('KRAI')
+    return unit_combo
 
 
 class RaimixerGUI(QMainWindow):
@@ -33,10 +34,15 @@ class RaimixerGUI(QMainWindow):
         super().__init__(parent)
         self.options = options
         self.raiconfig = raiconfig
-        self.initUI()
+
+        self.config_window = ConfigWindow(options, self)
+        self.config_window.reset_values()
+
+        self.accounts_loaded = False
         self.wallet_connected = False
         self.wallet_locked = True
-        self.config_window = ConfigWindow(options, raiconfig, self)
+
+        self.initUI()
 
     def initUI(self):
         central_wid = QWidget(self)
@@ -63,15 +69,29 @@ class RaimixerGUI(QMainWindow):
         self.wallet_conn_timer.start(1000)
 
     def update_wallet_conn(self):
-        rpc = RaiRPC(self.source_combo.currentText, self.raiconfig['wallet'],
+        rpc = RaiRPC(self.source_combo.currentText(), self.raiconfig['wallet'],
                      self.options.rpc_address, self.options.rpc_port)
 
         try:
             self.wallet_locked = rpc.wallet_locked()
         except ConnectionError:
             self.wallet_connected = False
+            self.accounts_loaded = False
         else:
             self.wallet_connected = True
+
+            if not self.accounts_loaded:
+                # Update the accounts combo with all the wallets accounts
+                selected_acc = self.source_combo.currentText()
+                all_accounts = rpc.list_accounts()
+                if selected_acc in all_accounts:
+                    all_accounts.remove(selected_acc)
+
+                self.source_combo.clear()
+                self.source_combo.addItem(selected_acc)
+                for acc in all_accounts:
+                    self.source_combo.addItem(acc)
+                self.accounts_loaded = True
 
         self.connected_lbl_dyn.setText('Yes' if self.wallet_connected else 'No')
         self.unlocked_lbl_dyn.setText('No' if self.wallet_locked else 'Yes')
@@ -83,7 +103,7 @@ class RaimixerGUI(QMainWindow):
         source_lbl = QLabel('Source:')
         # Set to default account or a list selector
         self.source_combo = QComboBox()
-        # XXX RPC call to read all wallet accounts and load them here
+        # The other accounts will be filled when connected to the RPC
         self.source_combo.addItem(self.raiconfig['default_account'])
         accounts_layout.addWidget(source_lbl)
         accounts_layout.addWidget(self.source_combo)
@@ -102,9 +122,10 @@ class RaimixerGUI(QMainWindow):
         amount_edit = QLineEdit('')
         amount_edit.setPlaceholderText('Amount to send')
         accounts_layout.addWidget(amount_lbl)
-        units_combo = _units_combo()
+        self.unit_combo = _unit_combo()
+        self.unit_combo.setCurrentText(self.config_window.unit_combo.currentText())
         amount_hbox.addWidget(amount_edit)
-        amount_hbox.addWidget(units_combo)
+        amount_hbox.addWidget(self.unit_combo)
         accounts_layout.addLayout(amount_hbox)
 
         incamount_check = QCheckBox('Increase needed amount (helps masking transaction, '
@@ -127,13 +148,12 @@ class RaimixerGUI(QMainWindow):
 
         mix_numaccounts_lbl = QLabel('Accounts:')
         mix_numaccounts_spin = QSpinBox()
-        # XXX set default from settings
-        mix_numaccounts_spin.setValue(4)
+        mix_numaccounts_spin.setValue(self.config_window.mix_numaccounts_spin.value())
         mix_layout.addRow(mix_numaccounts_lbl, mix_numaccounts_spin)
 
         mix_numrounds_lbl = QLabel('Rounds:')
         mix_numrounds_spin = QSpinBox()
-        mix_numrounds_spin.setValue(2)
+        mix_numrounds_spin.setValue(self.config_window.mix_numrounds_spin.value())
         mix_layout.addRow(mix_numrounds_lbl, mix_numrounds_spin)
 
         mix_groupbox.setLayout(mix_layout)
@@ -218,10 +238,9 @@ class RaimixerGUI(QMainWindow):
 
 class ConfigWindow(QMainWindow):
 
-    def __init__(self, options, raiconfig, parent=None):
+    def __init__(self, options, parent=None):
         super().__init__(parent)
         self.options = options
-        self.raiconfig = raiconfig
         self.initUI()
 
     def initUI(self):
@@ -236,29 +255,42 @@ class ConfigWindow(QMainWindow):
 
         unit_groupbox = QGroupBox('Default Unit')
         unit_hbox = QHBoxLayout()
-        unit_combo = _units_combo()
-        unit_hbox.addWidget(unit_combo)
+        self.unit_combo = _unit_combo()
+        unit_hbox.addWidget(self.unit_combo)
         unit_groupbox.setLayout(unit_hbox)
         self.main_layout.addWidget(unit_groupbox)
 
         self.create_buttons_box()
         self.setWindowTitle('Settings')
 
+    def reset_values(self):
+        raimixer_conf = read_raimixer_config()
+        self.addr_edit.setText(raimixer_conf['rpc_address'])
+        self.port_edit.setText(raimixer_conf['rpc_port'])
+        self.mix_numaccounts_spin.setValue(int(raimixer_conf['num_mixer_accounts']))
+        self.mix_numrounds_spin.setValue(int(raimixer_conf['num_mixing_rounds']))
+
+        unit = raimixer_conf['unit'].lower()
+        if unit in ('mrai', 'xrb'):
+            self.unit_combo.setCurrentText('XRB/MRAI')
+        elif unit == 'krai':
+            self.unit_combo.setCurrentText('KRAI')
+        else:
+            raise Exception('Unknown unit in config, use only mrai or krai')
+
     def create_connect_box(self):
         connect_groupbox = QGroupBox("Node / Wallet's RPC Connection")
         connect_layout = QVBoxLayout()
 
         addr_lbl = QLabel('Address:')
-        # XXX read from settings json, default to raiblocks config
-        addr_edit = QLineEdit(self.options.rpc_address)
+        self.addr_edit = QLineEdit(self.options.rpc_address)
         connect_layout.addWidget(addr_lbl)
-        connect_layout.addWidget(addr_edit)
+        connect_layout.addWidget(self.addr_edit)
 
         port_lbl = QLabel('Port:')
-        # XXX ditto
-        port_edit = QLineEdit(self.options.rpc_port)
+        self.port_edit = QLineEdit(self.options.rpc_port)
         connect_layout.addWidget(port_lbl)
-        connect_layout.addWidget(port_edit)
+        connect_layout.addWidget(self.port_edit)
 
         connect_groupbox.setLayout(connect_layout)
         self.main_layout.addWidget(connect_groupbox)
@@ -268,15 +300,14 @@ class ConfigWindow(QMainWindow):
         mix_layout = QFormLayout()
 
         mix_numaccounts_lbl = QLabel('Accounts:')
-        mix_numaccounts_spin = QSpinBox()
-        # XXX set default from loaded settings
-        mix_numaccounts_spin.setValue(4)
-        mix_layout.addRow(mix_numaccounts_lbl, mix_numaccounts_spin)
+        self.mix_numaccounts_spin = QSpinBox()
+        self.mix_numaccounts_spin.setValue(4)
+        mix_layout.addRow(mix_numaccounts_lbl, self.mix_numaccounts_spin)
 
         mix_numrounds_lbl = QLabel('Rounds:')
-        mix_numrounds_spin = QSpinBox()
-        mix_numrounds_spin.setValue(2)
-        mix_layout.addRow(mix_numrounds_lbl, mix_numrounds_spin)
+        self.mix_numrounds_spin = QSpinBox()
+        self.mix_numrounds_spin.setValue(2)
+        mix_layout.addRow(mix_numrounds_lbl, self.mix_numrounds_spin)
 
         mix_groupbox.setLayout(mix_layout)
         self.main_layout.addWidget(mix_groupbox)
@@ -285,8 +316,26 @@ class ConfigWindow(QMainWindow):
         buttons_groupbox = QGroupBox()
         buttons_layout = QHBoxLayout()
 
+        def _apply():
+            conf = {
+                    'rpc_address': self.addr_edit.text(),
+                    'rpc_port': self.port_edit.text(),
+                    'num_mixer_accounts': self.mix_numaccounts_spin.cleanText(),
+                    'num_mixing_rounds': self.mix_numrounds_spin.cleanText(),
+                    'unit': 'mrai' if self.unit_combo.currentText() == 'XRB/MRAI' else 'krai'
+            }
+            write_raimixer_config(conf)
+            self.hide()
+
         apply_btn = QPushButton('Apply')
+        apply_btn.clicked.connect(_apply)
+
+        def _cancel():
+            self.hide()
+            self.reset_values()
+
         cancel_btn = QPushButton('Cancel')
+        cancel_btn.clicked.connect(_cancel)
         buttons_layout.addWidget(apply_btn)
         buttons_layout.addWidget(cancel_btn)
 
