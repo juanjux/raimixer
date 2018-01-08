@@ -1,8 +1,8 @@
 import sys
-from typing import Tuple
+from typing import Tuple, Dict
 
 from raimixer.read_raiconfig import read_raimixer_config, write_raimixer_config
-from raimixer.rairpc import RaiRPC
+from raimixer.rairpc import RaiRPC, MRAI_TO_RAW, KRAI_TO_RAW
 
 from PyQt5.QtWidgets import (
         QWidget, QVBoxLayout, QHBoxLayout, QFormLayout, QPushButton, QApplication,
@@ -13,18 +13,21 @@ from PyQt5.QtGui import QFont, QFontMetrics
 from PyQt5.QtCore import QObject, pyqtSignal, pyqtSlot, QTimer
 from requests import ConnectionError
 
-# TODO: put the balance in the accounts combo next to each account
+# TODO: checkbox "randomly use balance from all accounts"
 # TODO: update the mixing+unit settings in the main window when the settings defaults are?
 # TODO: remove the mixing settings in the main GUI?
 # TODO: connect with raimixer and make it work
 # TODO: progress bar
 # TODO: tooltips
 
+MRAI_TEXT = 'XRB/MRAI'
+KRAI_TEXT = 'KRAI'
+
 
 def _unit_combo():
     unit_combo = QComboBox()
-    unit_combo.addItem('XRB/MRAI')
-    unit_combo.addItem('KRAI')
+    unit_combo.addItem(MRAI_TEXT)
+    unit_combo.addItem(KRAI_TEXT)
     return unit_combo
 
 
@@ -34,6 +37,7 @@ class RaimixerGUI(QMainWindow):
         super().__init__(parent)
         self.options = options
         self.raiconfig = raiconfig
+        self.rpc = None  # updated on update_wallet_conn
 
         self.config_window = ConfigWindow(options, self)
         self.config_window.reset_values()
@@ -41,6 +45,8 @@ class RaimixerGUI(QMainWindow):
         self.accounts_loaded = False
         self.wallet_connected = False
         self.wallet_locked = True
+
+        self.accounts: Dict[str, int] = {}
 
         self.initUI()
 
@@ -68,13 +74,41 @@ class RaimixerGUI(QMainWindow):
         self.wallet_conn_timer.timeout.connect(self.update_wallet_conn)
         self.wallet_conn_timer.start(1000)
 
+    def _update_accounts(self):
+        if not self.rpc:
+            return
+
+        self.accounts.clear()
+        all_accounts = self.rpc.list_accounts()
+        for acc in all_accounts:
+            self.accounts[acc] = self.rpc.account_balance(acc)
+
+    def _update_accounts_combo(self):
+        scombo = self.source_combo
+
+        divider = MRAI_TO_RAW if self.unit_combo.currentText() == MRAI_TEXT else KRAI_TO_RAW
+        selected = scombo.currentText()
+        selected = selected.split(' ')[0] if ' ' in selected else selected
+
+        scombo.clear()
+        selected_text = ''
+        for acc, balance in self.accounts.items():
+            balance = self.accounts[acc][0] / divider
+            text = f'{acc} ({balance})'
+            scombo.addItem(text)
+            if acc == selected:
+                selected_text = text
+
+        scombo.setCurrentText(selected_text)
+
     def update_wallet_conn(self):
-        rpc = RaiRPC(self.source_combo.currentText(), self.raiconfig['wallet'],
+        self.rpc = RaiRPC(self.source_combo.currentText(), self.raiconfig['wallet'],
                      self.options.rpc_address, self.options.rpc_port)
 
         try:
-            self.wallet_locked = rpc.wallet_locked()
+            self.wallet_locked = self.rpc.wallet_locked()
         except ConnectionError:
+            self.rpc = None
             self.wallet_connected = False
             self.accounts_loaded = False
         else:
@@ -82,15 +116,8 @@ class RaimixerGUI(QMainWindow):
 
             if not self.accounts_loaded:
                 # Update the accounts combo with all the wallets accounts
-                selected_acc = self.source_combo.currentText()
-                all_accounts = rpc.list_accounts()
-                if selected_acc in all_accounts:
-                    all_accounts.remove(selected_acc)
-
-                self.source_combo.clear()
-                self.source_combo.addItem(selected_acc)
-                for acc in all_accounts:
-                    self.source_combo.addItem(acc)
+                self._update_accounts()
+                self._update_accounts_combo()
                 self.accounts_loaded = True
 
         self.connected_lbl_dyn.setText('Yes' if self.wallet_connected else 'No')
@@ -124,6 +151,7 @@ class RaimixerGUI(QMainWindow):
         accounts_layout.addWidget(amount_lbl)
         self.unit_combo = _unit_combo()
         self.unit_combo.setCurrentText(self.config_window.unit_combo.currentText())
+        self.unit_combo.currentIndexChanged.connect(self._update_accounts_combo)
         amount_hbox.addWidget(amount_edit)
         amount_hbox.addWidget(self.unit_combo)
         accounts_layout.addLayout(amount_hbox)
@@ -234,6 +262,8 @@ class RaimixerGUI(QMainWindow):
 
     def start_mixing(self):
         print("XXX STARTING MIXING")
+        # Update accounts and amounts after the mixing
+        self.accounts_loaded = False
 
 
 class ConfigWindow(QMainWindow):
@@ -272,9 +302,9 @@ class ConfigWindow(QMainWindow):
 
         unit = raimixer_conf['unit'].lower()
         if unit in ('mrai', 'xrb'):
-            self.unit_combo.setCurrentText('XRB/MRAI')
+            self.unit_combo.setCurrentText(MRAI_TEXT)
         elif unit == 'krai':
-            self.unit_combo.setCurrentText('KRAI')
+            self.unit_combo.setCurrentText(KRAI_TEXT)
         else:
             raise Exception('Unknown unit in config, use only mrai or krai')
 
@@ -322,7 +352,7 @@ class ConfigWindow(QMainWindow):
                     'rpc_port': self.port_edit.text(),
                     'num_mixer_accounts': self.mix_numaccounts_spin.cleanText(),
                     'num_mixing_rounds': self.mix_numrounds_spin.cleanText(),
-                    'unit': 'mrai' if self.unit_combo.currentText() == 'XRB/MRAI' else 'krai'
+                    'unit': 'mrai' if self.unit_combo.currentText() == MRAI_TEXT else 'krai'
             }
             write_raimixer_config(conf)
             self.hide()
