@@ -1,6 +1,7 @@
 import sys
 import unittest
-from raimixer.cli import normalize_amount, convert_amount
+from raimixer.cli import convert_amount
+from raimixer.utils import normalize_amount
 from raimixer.rairpc import MRAI_TO_RAW, KRAI_TO_RAW
 
 class TestMixerHelpers(unittest.TestCase):

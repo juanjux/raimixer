@@ -5,3 +5,4 @@ raimixer/__pycache__/*
 raimixer.egg-info/*
 restore.py
 dist/*
+commands.py

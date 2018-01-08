@@ -15,7 +15,7 @@
 
 import raimixer.rairpc as rairpc
 from raimixer.raimixer import RaiMixer, WalletLockedException
-from raimixer.utils import normalize_amount, NormalizeAmountException
+from raimixer.utils import normalize_amount, NormalizeAmountException, DONATE_ADDR
 
 import sys
 from textwrap import dedent
@@ -33,7 +33,7 @@ def parse_options(raiconfig: Dict[str, Any]) -> Any:
     from argparse import ArgumentParser, RawTextHelpFormatter
 
     parser = ArgumentParser(description=dedent(
-        '''
+        f'''
          ____       _ __  __ _
         |  _ \ __ _(_)  \/  (_)_  _____ _ __
         | |_) / _` | | |\/| | \ \/ / _ \ '__|
@@ -49,7 +49,7 @@ def parse_options(raiconfig: Dict[str, Any]) -> Any:
 
         If this software is useful to you, consider donating to the author's rai-funds!
 
-        xrb_3usnd3kirzfudprd3tceauh3sejxpfm754jgnjajbttrefx9obgdqe69wfcf
+        {DONATE_ADDR}
 
         (Thank you!❤)
         '''

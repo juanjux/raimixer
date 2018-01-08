@@ -17,7 +17,7 @@ import random
 from typing import List, Dict, Optional
 
 import raimixer.rairpc as rairpc
-from raimixer.cli import HAS_GUI
+from raimixer.utils import DONATE_ADDR
 
 # TODO: precalculate the mixin rounds so I can show a nice progress bar of each round
 # TODO: kosher Python package
@@ -41,14 +41,17 @@ class RaiMixer:
         assert(num_mix_accounts > 1)
         assert(num_rounds > 0)
 
-        self.wallet = wallet
-        self.num_mix_accounts = num_mix_accounts
-        self.num_rounds = num_rounds
-
-        self.mix_accounts: List[str] = []
-        self.balances: Dict[str, int] = {}
-        self.tx_counter = 0
+        self.wallet                       = wallet
+        self.num_mix_accounts             = num_mix_accounts
+        self.num_rounds                   = num_rounds
+        self.mix_accounts: List[str]      = []
+        self.balances: Dict[str, int]     = {}
+        self.tx_counter                   = 0
         self.rpc: Optional[rairpc.RaiRPC] = rpc
+        self.print_func                   = print
+
+    def set_print_func(self, func):
+        self.print_func = func
 
     def start(self, orig_account: str, dest_account: str, real_tosend: int,
               initial_tosend: int, final_send_from_multiple: bool,
@@ -57,12 +60,12 @@ class RaiMixer:
         if type(real_tosend) != int or type(initial_tosend) != int:
                 raise RaiMixerException('real_tosend and initial_tosend must be integers')
 
-        self.orig_account = orig_account
-        self.dest_account = dest_account
-        self.initial_tosend = initial_tosend
-        self.real_tosend = real_tosend
+        self.orig_account             = orig_account
+        self.dest_account             = dest_account
+        self.initial_tosend           = initial_tosend
+        self.real_tosend              = real_tosend
         self.final_send_from_multiple = final_send_from_multiple
-        self.representatives = representatives
+        self.representatives          = representatives
 
         if self.rpc is None:
             self.rpc = rairpc.RaiRPC(self.orig_account, self.wallet)
@@ -78,24 +81,26 @@ class RaiMixer:
         num_first_dests = random.randrange(2, len(self.mix_accounts) + 1)
         first_dests = random.choices(self.mix_accounts, k=num_first_dests)
 
-        print('\nStarting sending to initial mixing accounts...')
+        self.print_func('\nStarting sending to initial mixing accounts...')
         self._send_one_to_many(self.orig_account, first_dests)
 
         # Shake it!
         for i in range(self.num_rounds):
-            print('\nStarting mixing round %d...' % (i + 1))
+            self.print_func('\nStarting mixing round %d...' % (i + 1))
             self._mix()
 
         self._send_to_dest()
 
-        print('\nDone! Total transactions done: %d' % self.tx_counter)
+        self.print_func(f'\nDone! Total transactions done: {self.tx_counter}')
+        self.print_func('If you like this program consideer donating to the author:')
+        self.print_func(f'{DONATE_ADDR}')
         assert(self.balances[self.orig_account] == self.initial_tosend - self.real_tosend)
         assert(self.balances[self.dest_account] == self.real_tosend)
 
         self._delete_accounts()
 
     def _generate_accounts(self, num: int) -> List[str]:
-        print('\nCreating mixing accounts...')
+        self.print_func('\nCreating mixing accounts...')
         rep = random.choice(self.representatives)
         return [self.rpc.create_account(rep) for n in range(num)]
 
@@ -155,15 +160,15 @@ class RaiMixer:
         try:
             self.balances[orig] -= amount
             self.balances[dest] += amount
-            self.tx_counter += 1
+            self.tx_counter     += 1
             self.rpc.send_and_receive(orig, dest, amount)
         except:
             self.balances[orig] = initial_tosend
             self.balances[dest] = real_tosend
-            self.tx_counter -= 1
+            self.tx_counter    -= 1
             raise
 
-        print("\nSending {} KRAI from [...{}] to [...{}]".format(
+        self.print_func("\nSending {} KRAI from [...{}] to [...{}]".format(
             amount // rairpc.KRAI_TO_RAW, orig[-8:], dest[-8:]))
 
         self._check_balances()
@@ -187,14 +192,14 @@ class RaiMixer:
     def _send_to_dest(self) -> None:
         # Move any balance in the orig account into one of the mixer accounts
         if self.balances[self.orig_account] > 0:
-            print('\nMoving remaining balance in the orig account to mix accounts...')
+            self.print_func('\nMoving remaining balance in the orig account to mix accounts...')
             self._send_one_to_many(self.orig_account, self.mix_accounts)
 
         if not self.final_send_from_multiple:
             # Choose a single non-origin account to sent from, collect
             # all the balances to it
             send_from_acc = random.choice(self.mix_accounts)
-            print('\nSending to final carrier account [%s]...' % send_from_acc)
+            self.print_func(f'\nSending to final carrier account [{send_from_acc}]...')
 
             for acc, balance in self.balances.items():
                 if acc == send_from_acc:
@@ -203,13 +208,13 @@ class RaiMixer:
                 if balance > 0:
                     self._send(acc, send_from_acc, balance)
 
-        print('\nSending to destination account...')
+        self.print_func('\nSending to destination account...')
         self._send_many_to_one(self.mix_accounts + [self.orig_account],
                                self.dest_account, self.real_tosend)
 
         # Send the rest back to the orig account
         if self.initial_tosend > self.real_tosend:
-            print('\nSending remaining balance back to the orig account...')
+            self.print_func('\nSending remaining balance back to the orig account...')
             self._send_many_to_one(self.mix_accounts, self.orig_account)
 
     def _random_amounts_split(self, total: int, num_accounts: int) -> List[int]:
@@ -222,10 +227,10 @@ class RaiMixer:
         remaining = total
 
         while True:
-            amount = random.randint(1, max(remaining // num_accounts, 1))
-            dest = random.randrange(0, num_accounts)
+            amount        = random.randint(1, max(remaining // num_accounts, 1))
+            dest          = random.randrange(0, num_accounts)
             tosend[dest] += amount
-            remaining -= amount
+            remaining    -= amount
 
             if remaining == 0:
                 break

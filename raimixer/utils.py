@@ -13,6 +13,8 @@
 
 # Copyright 2017-2018 Juanjo Alvarez
 
+DONATE_ADDR = 'xrb_188nhspq7gottxurg598m6zc7zcuxfy74u65hgjdfc6yscmg38mekesxx4ub'
+
 
 # TODO: unittest
 def valid_account(acc: str) -> bool:
@@ -31,8 +33,10 @@ class NormalizeAmountException(Exception):
     pass
 
 
-# XXX document, remove the sysexits
+# TODO: unittest
 def normalize_amount(amount: str, multiplier: int) -> int:
+    '''Convert an amount in MRAI or KRAI to RAWs as the RPC interface uses'''
+
     if ',' in amount:
         raise NormalizeAmountException("Don't use commas in amounts to separate decimals, use a dot")
 

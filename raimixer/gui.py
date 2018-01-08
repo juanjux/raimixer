@@ -14,8 +14,9 @@
 # Copyright 2017-2018 Juanjo Alvarez
 
 import sys
-from typing import Tuple, Dict
+from typing import Tuple, Dict, List
 
+from raimixer.raimixer import RaiMixer
 from raimixer.read_raiconfig import read_raimixer_config, write_raimixer_config
 from raimixer.rairpc import RaiRPC, MRAI_TO_RAW, KRAI_TO_RAW
 
@@ -24,17 +25,17 @@ from PyQt5.QtWidgets import (
         QGroupBox, QLabel, QLineEdit, QSpinBox, QComboBox, QTextBrowser,
         QCheckBox, QMainWindow, QMessageBox
 )
-from PyQt5.QtGui import QFont, QFontMetrics
-from PyQt5.QtCore import QObject, pyqtSignal, pyqtSlot, QTimer
+from PyQt5.QtGui import QFont, QFontMetrics, QTextCursor
+from PyQt5.QtCore import QObject, pyqtSignal, pyqtSlot, QTimer, QThread
 from requests import ConnectionError
 
-# TODO: min values for accounts and rounds (1)
+# TODO: check/enforce min values for accounts and rounds (1)
 # TODO: checkbox "randomly use balance from all accounts"
-# TODO: update the mixing+unit settings in the main window when the settings defaults are?
-# TODO: remove the mixing settings in the main GUI?
-# TODO: connect with raimixer and make it work
+# TODO: remove the mixing settings in the main GUI
 # TODO: progress bar
 # TODO: tooltips
+# TODO: change mix button for cancel button during mixing
+# TODO: button for the --clean option
 
 MRAI_TEXT = 'XRB/MRAI'
 KRAI_TEXT = 'KRAI'
@@ -51,19 +52,16 @@ class RaimixerGUI(QMainWindow):
 
     def __init__(self, options, raiconfig, parent=None):
         super().__init__(parent)
-        self.options = options
-        self.raiconfig = raiconfig
-        self.rpc = None  # updated on update_wallet_conn
-
-        self.config_window = ConfigWindow(options, self)
-        self.config_window.reset_values()
-
-        self.accounts_loaded = False
-        self.wallet_connected = False
-        self.wallet_locked = True
-
+        self.options                  = options
+        self.raiconfig                = raiconfig
+        self.rpc                      = None  # updated on update_wallet_conn
+        self.accounts_loaded          = False
+        self.wallet_connected         = False
+        self.wallet_locked            = True
         self.accounts: Dict[str, int] = {}
+        self.config_window            = ConfigWindow(options, self)
 
+        self.config_window.reset_values()
         self.initUI()
 
     def initUI(self):
@@ -107,9 +105,8 @@ class RaimixerGUI(QMainWindow):
         return MRAI_TO_RAW if self.unit_combo.currentText() == MRAI_TEXT else KRAI_TO_RAW
 
     def _update_accounts_combo(self):
-        scombo = self.source_combo
-
-        divider = self._get_divider()
+        scombo   = self.source_combo
+        divider  = self._get_divider()
         selected = self._get_selected_account()
 
         scombo.clear()
@@ -130,9 +127,9 @@ class RaimixerGUI(QMainWindow):
         try:
             self.wallet_locked = self.rpc.wallet_locked()
         except ConnectionError:
-            self.rpc = None
+            self.rpc              = None
             self.wallet_connected = False
-            self.accounts_loaded = False
+            self.accounts_loaded  = False
         else:
             self.wallet_connected = True
 
@@ -147,7 +144,7 @@ class RaimixerGUI(QMainWindow):
 
     def create_accounts_box(self):
         accounts_groupbox = QGroupBox()
-        accounts_layout = QVBoxLayout()
+        accounts_layout   = QVBoxLayout()
 
         source_lbl = QLabel('Source:')
         # Set to default account or a list selector
@@ -157,7 +154,7 @@ class RaimixerGUI(QMainWindow):
         accounts_layout.addWidget(source_lbl)
         accounts_layout.addWidget(self.source_combo)
 
-        dest_lbl = QLabel('Destination:')
+        dest_lbl       = QLabel('Destination:')
         self.dest_edit = QLineEdit('x' * 64)
         self._resize_to_content(self.dest_edit)
 
@@ -166,10 +163,11 @@ class RaimixerGUI(QMainWindow):
         accounts_layout.addWidget(dest_lbl)
         accounts_layout.addWidget(self.dest_edit)
 
-        amount_lbl = QLabel('Amount:')
-        amount_hbox = QHBoxLayout()
+        amount_lbl       = QLabel('Amount:')
+        amount_hbox      = QHBoxLayout()
         self.amount_edit = QLineEdit('')
         self.amount_edit.setPlaceholderText('Amount to send')
+
         accounts_layout.addWidget(amount_lbl)
         self.unit_combo = _unit_combo()
         self.unit_combo.setCurrentText(self.config_window.unit_combo.currentText())
@@ -196,12 +194,12 @@ class RaimixerGUI(QMainWindow):
         mix_groupbox = QGroupBox('Mixing')
         mix_layout = QFormLayout()
 
-        mix_numaccounts_lbl = QLabel('Accounts:')
+        mix_numaccounts_lbl       = QLabel('Accounts:')
         self.mix_numaccounts_spin = QSpinBox()
         self.mix_numaccounts_spin.setValue(self.config_window.mix_numaccounts_spin.value())
         mix_layout.addRow(mix_numaccounts_lbl, self.mix_numaccounts_spin)
 
-        mix_numrounds_lbl = QLabel('Rounds:')
+        mix_numrounds_lbl       = QLabel('Rounds:')
         self.mix_numrounds_spin = QSpinBox()
         self.mix_numrounds_spin.setValue(self.config_window.mix_numrounds_spin.value())
         mix_layout.addRow(mix_numrounds_lbl, self.mix_numrounds_spin)
@@ -226,36 +224,36 @@ class RaimixerGUI(QMainWindow):
 
     def create_buttons_box(self):
         buttons_groupbox = QGroupBox()
-        buttons_layout = QHBoxLayout()
+        buttons_layout   = QHBoxLayout()
 
-        mix_btn = QPushButton('Mix!')
-        mix_btn.clicked.connect(self._check_mixable)
-        settings_btn = QPushButton('Settings')
+        self.mix_btn = QPushButton('Mix!')
+        self.mix_btn.clicked.connect(self._check_mixable)
+        self.settings_btn = QPushButton('Settings')
 
         def _show_config():
             self.config_window.show()
 
-        settings_btn.clicked.connect(_show_config)
-        buttons_layout.addWidget(mix_btn)
-        buttons_layout.addWidget(settings_btn)
+        self.settings_btn.clicked.connect(_show_config)
+        buttons_layout.addWidget(self.mix_btn)
+        buttons_layout.addWidget(self.settings_btn)
 
         buttons_groupbox.setLayout(buttons_layout)
         self.main_layout.addWidget(buttons_groupbox)
 
     def create_log_box(self):
         self.log_groupbox = QGroupBox('Output')
-        log_layout = QVBoxLayout()
+        log_layout        = QVBoxLayout()
+        self.log_text     = QTextBrowser()
 
-        log_text = QTextBrowser()
-        log_layout.addWidget(log_text)
+        log_layout.addWidget(self.log_text)
         self.log_groupbox.setLayout(log_layout)
         self.main_layout.addWidget(self.log_groupbox)
         self.log_groupbox.setHidden(True)
 
     def _resize_to_content(self, line_edit):
-        text = line_edit.text()
-        font = QFont('', 0)
-        fm = QFontMetrics(font)
+        text       = line_edit.text()
+        font       = QFont('', 0)
+        fm         = QFontMetrics(font)
         pixelsWide = fm.width(text)
         pixelsHigh = fm.height()
         line_edit.setFixedSize(pixelsWide, pixelsHigh)
@@ -308,32 +306,43 @@ class RaimixerGUI(QMainWindow):
                                 QMessageBox.Ok, QMessageBox.Ok)
             return
 
-        incamount_text = self.incamount_edit.text()
-        if len(incamount_text) > 0:
+        incamount_txt = self.incamount_edit.text()
+        if len(incamount_txt) > 0:
             try:
-                float(incamount_text)
+                float(incamount_txt)
             except ValueError:
                 QMessageBox.warning(self, "Invalid increased amount",
                                     "Invalid increased amount",
                                     QMessageBox.Ok, QMessageBox.Ok)
-            return
+                return
+        else:
+            incamount_txt = "0"
 
-        # XXX check balance of selected account for amount + plus!
+        # Check that there is enough balance
+        selected_acc     = self._get_selected_account()
+        selected_balance = self.accounts[selected_acc][0]
+        divider          = self._get_divider()
+        needed_balance   = float(amount_txt) + float(incamount_txt)
+
+        if selected_balance < (needed_balance * divider):
+            QMessageBox.warning(self, "Balance too low",
+                                "Insufficient balance for sending + increase",
+                                QMessageBox.Ok, QMessageBox.Ok)
+            return
 
         self.start_mixing()
 
     def start_mixing(self):
         from raimixer.utils import normalize_amount, NormalizeAmountException
 
-        print("XXX STARTING MIXING")
-        from raimixer.raimixer import RaiMixer
         rai = RaiMixer(self.raiconfig['wallet'], self.mix_numaccounts_spin.value(),
                        self.mix_numrounds_spin.value(), self.rpc)
 
         divider = self._get_divider()
         try:
-            tosend = normalize_amount(self.amount_edit.text(), divider)
+            tosend    = normalize_amount(self.amount_edit.text(), divider)
             incamount = self.incamount_edit.text()
+
             if len(incamount.strip()) == 0:
                 incamount = '0'
             initial_tosend = tosend + normalize_amount(incamount, divider)
@@ -342,12 +351,46 @@ class RaimixerGUI(QMainWindow):
                                 QMessageBox.Ok, QMessageBox.Ok)
             return
 
-        # XXX convert amounts to RAW using cli.convert_amount
-        rai.start(self._get_selected_account(), self.dest_edit.text(),
+        self.guimixer = RaiMixerThreadWrapper(rai)
+        self.guimixer.set_start_params(self._get_selected_account(), self.dest_edit.text(),
                   tosend, initial_tosend, False, self.raiconfig['representatives'])
 
+        def add_text(txt):
+            self.log_text.append(txt)
+            cursor = self.log_text.textCursor()
+            cursor.movePosition(QTextCursor.End, QTextCursor.MoveAnchor)
+
+        self.guimixer.text_available.connect(add_text)
+
+        def success():
+            QMessageBox.information(self, "Sucess!",
+                             "Mixing successfully completed and sent!",
+                             QMessageBox.Ok, QMessageBox.Ok)
+            self.mix_btn.setEnabled(True)
+            self.accounts_loaded = False
+            self._update_accounts()
+            self._update_accounts_combo()
+
+        self.guimixer.mixing_finished.connect(success)
+
+        def error(msg):
+            QMessageBox.warning(self, "Problem!",
+                    f"There was an error while mixing:\n{msg}\n"
+                     "Check the text log. You can recover the amounts to the "
+                     "main account with the --clean option.",
+                    QMessageBox.Ok, QMessageBox.Ok)
+            self.mix_btn.setEnabled(True)
+            self.accounts_loaded = False
+            self._update_accounts()
+            self._update_accounts_combo()
+
+        self.guimixer.mixing_problem.connect(error)
+
+        self.log_groupbox.setHidden(False)
+        self.mix_btn.setEnabled(False)
+        self.guimixer.start()
+
         # Update accounts and amounts after the mixing
-        self.accounts_loaded = False
 
 
 class ConfigWindow(QMainWindow):
@@ -367,8 +410,8 @@ class ConfigWindow(QMainWindow):
         self.create_connect_box()
         self.create_mixingdefs_box()
 
-        unit_groupbox = QGroupBox('Default Unit')
-        unit_hbox = QHBoxLayout()
+        unit_groupbox   = QGroupBox('Default Unit')
+        unit_hbox       = QHBoxLayout()
         self.unit_combo = _unit_combo()
         unit_hbox.addWidget(self.unit_combo)
         unit_groupbox.setLayout(unit_hbox)
@@ -394,7 +437,7 @@ class ConfigWindow(QMainWindow):
 
     def create_connect_box(self):
         connect_groupbox = QGroupBox("Node / Wallet's RPC Connection")
-        connect_layout = QVBoxLayout()
+        connect_layout   = QVBoxLayout()
 
         addr_lbl = QLabel('Address:')
         self.addr_edit = QLineEdit(self.options.rpc_address)
@@ -411,14 +454,14 @@ class ConfigWindow(QMainWindow):
 
     def create_mixingdefs_box(self):
         mix_groupbox = QGroupBox('Mixing Defaults')
-        mix_layout = QFormLayout()
+        mix_layout   = QFormLayout()
 
-        mix_numaccounts_lbl = QLabel('Accounts:')
+        mix_numaccounts_lbl       = QLabel('Accounts:')
         self.mix_numaccounts_spin = QSpinBox()
         self.mix_numaccounts_spin.setValue(4)
         mix_layout.addRow(mix_numaccounts_lbl, self.mix_numaccounts_spin)
 
-        mix_numrounds_lbl = QLabel('Rounds:')
+        mix_numrounds_lbl       = QLabel('Rounds:')
         self.mix_numrounds_spin = QSpinBox()
         self.mix_numrounds_spin.setValue(2)
         mix_layout.addRow(mix_numrounds_lbl, self.mix_numrounds_spin)
@@ -428,7 +471,7 @@ class ConfigWindow(QMainWindow):
 
     def create_buttons_box(self):
         buttons_groupbox = QGroupBox()
-        buttons_layout = QHBoxLayout()
+        buttons_layout   = QHBoxLayout()
 
         def _apply():
             conf = {
@@ -455,3 +498,35 @@ class ConfigWindow(QMainWindow):
 
         buttons_groupbox.setLayout(buttons_layout)
         self.main_layout.addWidget(buttons_groupbox)
+
+
+class RaiMixerThreadWrapper(QThread):
+
+    text_available  = pyqtSignal(object)
+    mixing_finished = pyqtSignal()
+    mixing_problem  = pyqtSignal(object)
+
+    def __init__(self, raimixer_object: RaiMixer) -> None:
+        QThread.__init__(self)
+        self.mixer = raimixer_object
+        self.mixer.set_print_func(lambda txt: self.text_available.emit(txt))
+
+    def set_start_params(self, orig_account: str, dest_account: str, real_tosend: int,
+              initial_tosend: int, final_send_from_multiple: bool,
+              representatives: List[str]) -> None:
+
+        self.orig_account             = orig_account
+        self.dest_account             = dest_account
+        self.real_tosend              = real_tosend
+        self.initial_tosend           = initial_tosend
+        self.final_send_from_multiple = final_send_from_multiple
+        self.representatives          = representatives
+
+    def run(self):
+        try:
+            self.mixer.start(self.orig_account, self.dest_account, self.real_tosend,
+                             self.initial_tosend, self.final_send_from_multiple,
+                             self.representatives)
+            self.mixing_finished.emit()
+        except Exception as e:
+            self.mixing_problem.emit(str(e))
