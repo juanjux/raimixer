@@ -11,12 +11,13 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-# Copyright 2017 Juanjo Alvarez
+# Copyright 2017-2018 Juanjo Alvarez
 
 import random
 from typing import List, Dict, Optional
 
 import raimixer.rairpc as rairpc
+from raimixer.cli import HAS_GUI
 
 # TODO: precalculate the mixin rounds so I can show a nice progress bar of each round
 # TODO: kosher Python package
@@ -34,7 +35,7 @@ class WalletLockedException(Exception):
 class RaiMixer:
     # TODO: define better arguments for init and start, or remove start()
 
-    def __init__(self, wallet: str, num_mix_accounts=5, num_rounds=4,
+    def __init__(self, wallet: str, num_mix_accounts: int=5, num_rounds: int=4,
                  rpc: Optional[rairpc.RaiRPC] = None) -> None:
 
         assert(num_mix_accounts > 1)
@@ -50,7 +51,7 @@ class RaiMixer:
         self.rpc: Optional[rairpc.RaiRPC] = rpc
 
     def start(self, orig_account: str, dest_account: str, real_tosend: int,
-              initial_tosend: int, final_send_from_multiple,
+              initial_tosend: int, final_send_from_multiple: bool,
               representatives: List[str]) -> None:
 
         if type(real_tosend) != int or type(initial_tosend) != int:

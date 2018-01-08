@@ -1,5 +1,21 @@
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+# Copyright 2017-2018 Juanjo Alvarez
+
 import raimixer.rairpc as rairpc
 from raimixer.raimixer import RaiMixer, WalletLockedException
+from raimixer.utils import normalize_amount, NormalizeAmountException
 
 import sys
 from textwrap import dedent
@@ -141,39 +157,23 @@ def print_amount_help() -> None:
     '''))
 
 
-def normalize_amount(amount: str, multiplier: int) -> int:
-    if ',' in amount:
-        print("Don't use commas in amounts to separate decimals, use a dot")
-        print_amount_help()
-        sys.exit(1)
-
-    if '.' in amount:
-        tokens = amount.split('.')
-        if len(tokens) > 2:
-            print("Don't use more than one dot for amounts and use them for decimals")
-            print_amount_help()
-            sys.exit(1)
-
-        base, decimal = tokens
-        divider = len(decimal)
-        amount = amount.replace('.', '')
-        return int(amount) * (multiplier // (10 ** divider))
-
-    return int(amount) * multiplier
-
-
 def convert_amount(amount):
     amount = amount.lower()
     raw_amount: int = ''
 
-    if amount.endswith('xrb'):
-        raw_amount = normalize_amount(amount[:-3], rairpc.MRAI_TO_RAW)
-    elif amount.endswith('mrai'):
-        raw_amount = normalize_amount(amount[:-4], rairpc.MRAI_TO_RAW)
-    elif amount.endswith('krai'):
-        raw_amount = normalize_amount(amount[:-4], rairpc.KRAI_TO_RAW)
-    else:
-        print('Amount options must end in mrai/xrb (XRB/megarai) or krai (kilorai)')
+    try:
+        if amount.endswith('xrb'):
+            raw_amount = normalize_amount(amount[:-3], rairpc.MRAI_TO_RAW)
+        elif amount.endswith('mrai'):
+            raw_amount = normalize_amount(amount[:-4], rairpc.MRAI_TO_RAW)
+        elif amount.endswith('krai'):
+            raw_amount = normalize_amount(amount[:-4], rairpc.KRAI_TO_RAW)
+        else:
+            print('Amount options must end in mrai/xrb (XRB/megarai) or krai (kilorai)')
+            print_amount_help()
+            sys.exit(1)
+    except NormalizeAmountException as e:
+        print(str(e))
         print_amount_help()
         sys.exit(1)
 
@@ -181,7 +181,6 @@ def convert_amount(amount):
 
 
 def main():
-
     from raimixer.read_raiconfig import get_raiblocks_config
     from requests.exceptions import ConnectionError
 

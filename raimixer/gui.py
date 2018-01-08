@@ -1,3 +1,18 @@
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+# Copyright 2017-2018 Juanjo Alvarez
+
 import sys
 from typing import Tuple, Dict
 
@@ -13,6 +28,7 @@ from PyQt5.QtGui import QFont, QFontMetrics
 from PyQt5.QtCore import QObject, pyqtSignal, pyqtSlot, QTimer
 from requests import ConnectionError
 
+# TODO: min values for accounts and rounds (1)
 # TODO: checkbox "randomly use balance from all accounts"
 # TODO: update the mixing+unit settings in the main window when the settings defaults are?
 # TODO: remove the mixing settings in the main GUI?
@@ -83,12 +99,18 @@ class RaimixerGUI(QMainWindow):
         for acc in all_accounts:
             self.accounts[acc] = self.rpc.account_balance(acc)
 
+    def _get_selected_account(self):
+        selected = self.source_combo.currentText()
+        return selected.split(' ')[0] if ' ' in selected else selected
+
+    def _get_divider(self) -> int:
+        return MRAI_TO_RAW if self.unit_combo.currentText() == MRAI_TEXT else KRAI_TO_RAW
+
     def _update_accounts_combo(self):
         scombo = self.source_combo
 
-        divider = MRAI_TO_RAW if self.unit_combo.currentText() == MRAI_TEXT else KRAI_TO_RAW
-        selected = scombo.currentText()
-        selected = selected.split(' ')[0] if ' ' in selected else selected
+        divider = self._get_divider()
+        selected = self._get_selected_account()
 
         scombo.clear()
         selected_text = ''
@@ -136,36 +158,36 @@ class RaimixerGUI(QMainWindow):
         accounts_layout.addWidget(self.source_combo)
 
         dest_lbl = QLabel('Destination:')
-        dest_edit = QLineEdit('x' * 64)
-        self._resize_to_content(dest_edit)
+        self.dest_edit = QLineEdit('x' * 64)
+        self._resize_to_content(self.dest_edit)
 
-        dest_edit.setText('')
-        dest_edit.setPlaceholderText('Destination account')
+        self.dest_edit.setText('')
+        self.dest_edit.setPlaceholderText('Destination account')
         accounts_layout.addWidget(dest_lbl)
-        accounts_layout.addWidget(dest_edit)
+        accounts_layout.addWidget(self.dest_edit)
 
         amount_lbl = QLabel('Amount:')
         amount_hbox = QHBoxLayout()
-        amount_edit = QLineEdit('')
-        amount_edit.setPlaceholderText('Amount to send')
+        self.amount_edit = QLineEdit('')
+        self.amount_edit.setPlaceholderText('Amount to send')
         accounts_layout.addWidget(amount_lbl)
         self.unit_combo = _unit_combo()
         self.unit_combo.setCurrentText(self.config_window.unit_combo.currentText())
         self.unit_combo.currentIndexChanged.connect(self._update_accounts_combo)
-        amount_hbox.addWidget(amount_edit)
+        amount_hbox.addWidget(self.amount_edit)
         amount_hbox.addWidget(self.unit_combo)
         accounts_layout.addLayout(amount_hbox)
 
         incamount_check = QCheckBox('Increase needed amount (helps masking transaction, '
                                     'excess returns to account)')
-        incamount_edit = QLineEdit('')
-        incamount_edit.setPlaceholderText('Amount to increase')
-        incamount_edit.setEnabled(False)
+        self.incamount_edit = QLineEdit('')
+        self.incamount_edit.setPlaceholderText('Amount to increase')
+        self.incamount_edit.setEnabled(False)
         incamount_check.stateChanged.connect(
-                lambda: incamount_edit.setEnabled(incamount_check.isChecked())
+                lambda: self.incamount_edit.setEnabled(incamount_check.isChecked())
         )
         accounts_layout.addWidget(incamount_check)
-        accounts_layout.addWidget(incamount_edit)
+        accounts_layout.addWidget(self.incamount_edit)
 
         accounts_groupbox.setLayout(accounts_layout)
         self.main_layout.addWidget(accounts_groupbox)
@@ -175,14 +197,14 @@ class RaimixerGUI(QMainWindow):
         mix_layout = QFormLayout()
 
         mix_numaccounts_lbl = QLabel('Accounts:')
-        mix_numaccounts_spin = QSpinBox()
-        mix_numaccounts_spin.setValue(self.config_window.mix_numaccounts_spin.value())
-        mix_layout.addRow(mix_numaccounts_lbl, mix_numaccounts_spin)
+        self.mix_numaccounts_spin = QSpinBox()
+        self.mix_numaccounts_spin.setValue(self.config_window.mix_numaccounts_spin.value())
+        mix_layout.addRow(mix_numaccounts_lbl, self.mix_numaccounts_spin)
 
         mix_numrounds_lbl = QLabel('Rounds:')
-        mix_numrounds_spin = QSpinBox()
-        mix_numrounds_spin.setValue(self.config_window.mix_numrounds_spin.value())
-        mix_layout.addRow(mix_numrounds_lbl, mix_numrounds_spin)
+        self.mix_numrounds_spin = QSpinBox()
+        self.mix_numrounds_spin.setValue(self.config_window.mix_numrounds_spin.value())
+        mix_layout.addRow(mix_numrounds_lbl, self.mix_numrounds_spin)
 
         mix_groupbox.setLayout(mix_layout)
         self.mixwallet_layout.addWidget(mix_groupbox)
@@ -206,30 +228,8 @@ class RaimixerGUI(QMainWindow):
         buttons_groupbox = QGroupBox()
         buttons_layout = QHBoxLayout()
 
-        def _check_wallet():
-            base_msg = "If this still don't work:\n\n" \
-                       "- Check that RaiBlocks 'config.json' file has the options " \
-                       "'rpc_enabled' and 'control_enabled' set to \"true\".\n\n" \
-                       "- Check the RPC connection settings." \
-
-            if not self.wallet_connected:
-                QMessageBox.warning(self, "Wallet closed",
-                                    "Can't connect to wallet: please open and unlock it. " +
-                                    base_msg,
-                                    QMessageBox.Ok, QMessageBox.Ok)
-                return
-
-            if self.wallet_locked:
-                QMessageBox.warning(self, "Wallet locked",
-                                    "Wallet is locked; please unlock it",
-                                    QMessageBox.Ok, QMessageBox.Ok)
-                return
-
-            else:
-                self.start_mixing()
-
         mix_btn = QPushButton('Mix!')
-        mix_btn.clicked.connect(_check_wallet)
+        mix_btn.clicked.connect(self._check_mixable)
         settings_btn = QPushButton('Settings')
 
         def _show_config():
@@ -260,8 +260,92 @@ class RaimixerGUI(QMainWindow):
         pixelsHigh = fm.height()
         line_edit.setFixedSize(pixelsWide, pixelsHigh)
 
+    def _check_mixable(self):
+        from raimixer.utils import valid_account
+
+        base_msg = "If this still don't work:\n\n" \
+                   "- Check that RaiBlocks 'config.json' file has the options " \
+                   "'rpc_enabled' and 'control_enabled' set to \"true\".\n\n" \
+                   "- Check the RPC connection settings." \
+
+        if not self.wallet_connected:
+            QMessageBox.warning(self, "Wallet closed",
+                                "Can't connect to wallet: please open and unlock it. " +
+                                base_msg,
+                                QMessageBox.Ok, QMessageBox.Ok)
+            return
+
+        if self.wallet_locked:
+            QMessageBox.warning(self, "Wallet locked",
+                                "Wallet is locked; please unlock it",
+                                QMessageBox.Ok, QMessageBox.Ok)
+            return
+
+        if len(self.dest_edit.text()) == 0:
+            QMessageBox.warning(self, "Empty destination account",
+                                "Empty destination account",
+                                QMessageBox.Ok, QMessageBox.Ok)
+            return
+
+        if not valid_account(self.dest_edit.text()):
+            QMessageBox.warning(self, "Invalid destination account",
+                                "Invalid destination account",
+                                QMessageBox.Ok, QMessageBox.Ok)
+            return
+
+        amount_txt = self.amount_edit.text()
+        if len(amount_txt.strip()) == 0:
+            QMessageBox.warning(self, "Empty amount",
+                                "Empty amount",
+                                QMessageBox.Ok, QMessageBox.Ok)
+            return
+
+        try:
+            float(amount_txt)
+        except ValueError:
+            QMessageBox.warning(self, "Invalid amount",
+                                "Invalid amount",
+                                QMessageBox.Ok, QMessageBox.Ok)
+            return
+
+        incamount_text = self.incamount_edit.text()
+        if len(incamount_text) > 0:
+            try:
+                float(incamount_text)
+            except ValueError:
+                QMessageBox.warning(self, "Invalid increased amount",
+                                    "Invalid increased amount",
+                                    QMessageBox.Ok, QMessageBox.Ok)
+            return
+
+        # XXX check balance of selected account for amount + plus!
+
+        self.start_mixing()
+
     def start_mixing(self):
+        from raimixer.utils import normalize_amount, NormalizeAmountException
+
         print("XXX STARTING MIXING")
+        from raimixer.raimixer import RaiMixer
+        rai = RaiMixer(self.raiconfig['wallet'], self.mix_numaccounts_spin.value(),
+                       self.mix_numrounds_spin.value(), self.rpc)
+
+        divider = self._get_divider()
+        try:
+            tosend = normalize_amount(self.amount_edit.text(), divider)
+            incamount = self.incamount_edit.text()
+            if len(incamount.strip()) == 0:
+                incamount = '0'
+            initial_tosend = tosend + normalize_amount(incamount, divider)
+        except NormalizeAmountException as e:
+            QMessageBox.warning(self, "Invalid amount", "Invalid amount",
+                                QMessageBox.Ok, QMessageBox.Ok)
+            return
+
+        # XXX convert amounts to RAW using cli.convert_amount
+        rai.start(self._get_selected_account(), self.dest_edit.text(),
+                  tosend, initial_tosend, False, self.raiconfig['representatives'])
+
         # Update accounts and amounts after the mixing
         self.accounts_loaded = False
 
@@ -348,11 +432,11 @@ class ConfigWindow(QMainWindow):
 
         def _apply():
             conf = {
-                    'rpc_address': self.addr_edit.text(),
-                    'rpc_port': self.port_edit.text(),
-                    'num_mixer_accounts': self.mix_numaccounts_spin.cleanText(),
-                    'num_mixing_rounds': self.mix_numrounds_spin.cleanText(),
-                    'unit': 'mrai' if self.unit_combo.currentText() == MRAI_TEXT else 'krai'
+                'rpc_address': self.addr_edit.text(),
+                'rpc_port': self.port_edit.text(),
+                'num_mixer_accounts': self.mix_numaccounts_spin.cleanText(),
+                'num_mixing_rounds': self.mix_numrounds_spin.cleanText(),
+                'unit': 'mrai' if self.unit_combo.currentText() == MRAI_TEXT else 'krai'
             }
             write_raimixer_config(conf)
             self.hide()

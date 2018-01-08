@@ -60,11 +60,11 @@ def read_raimixer_config() -> Dict[str, str]:
     def write_default_config() -> Dict[str, str]:
         rai_config = get_raiblocks_config()
         config = {
-                'rpc_address': rai_config['rpc_address'],
-                'rpc_port': rai_config['rpc_port'],
-                'num_mixer_accounts': '4',
-                'num_mixing_rounds': '2',
-                'unit': 'mrai'
+            'rpc_address': rai_config['rpc_address'],
+            'rpc_port': rai_config['rpc_port'],
+            'num_mixer_accounts': '4',
+            'num_mixing_rounds': '2',
+            'unit': 'mrai'
         }
         write_raimixer_config(config)
         return config

@@ -11,7 +11,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-# Copyright 2017 Juanjo Alvarez
+# Copyright 2017-2018 Juanjo Alvarez
 
 import json
 import time
@@ -19,9 +19,13 @@ from typing import Tuple, List, Dict, Any, Optional
 
 import requests
 
+
 class RaiRPCException(Exception): pass
 
+
 WAIT_TIMEOUT = 20
+
+# XXX move to utils
 MRAI_TO_RAW = 1000000000000000000000000000000
 KRAI_TO_RAW = MRAI_TO_RAW // 1000
 
