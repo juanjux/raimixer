@@ -181,12 +181,14 @@ def convert_amount(amount):
 
 
 def main():
+
     from raimixer.read_raiconfig import get_raiblocks_config
     from requests.exceptions import ConnectionError
 
     raiconfig = get_raiblocks_config()
     options = parse_options(raiconfig)
 
+    global HAS_GUI
     if options.gui:
         if not HAS_GUI:
             print('Error: --gui requested but GUI cannot be started (check PyQt5 '
@@ -195,6 +197,8 @@ def main():
 
         main_gui(raiconfig, options)
         sys.exit(0)
+    else:
+        HAS_GUI = False
 
     try:
         if options.clean:

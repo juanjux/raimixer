@@ -6,12 +6,13 @@ from raimixer.rairpc import RaiRPC
 from PyQt5.QtWidgets import (
         QWidget, QVBoxLayout, QHBoxLayout, QFormLayout, QPushButton, QApplication,
         QGroupBox, QLabel, QLineEdit, QSpinBox, QComboBox, QTextBrowser,
-        QCheckBox, QMainWindow
+        QCheckBox, QMainWindow, QMessageBox
 )
 from PyQt5.QtGui import QFont, QFontMetrics
 from PyQt5.QtCore import QObject, pyqtSignal, pyqtSlot, QTimer
 from requests import ConnectionError
 
+# TODO: message when the mix button is pressed but not connected or unlocked.
 # TODO: store/load config (appdirs.user_config_dir()/raimixer_gui.json)
 # TODO: simplify the var names in the private methods
 # TODO: connect with raimixer and make it work
@@ -157,7 +158,30 @@ class RaimixerGUI(QMainWindow):
         buttons_groupbox = QGroupBox()
         buttons_layout = QHBoxLayout()
 
+        def _check_wallet():
+            base_msg = "If this still don't work:\n\n" \
+                       "- Check that RaiBlocks 'config.json' file has the options " \
+                       "'rpc_enabled' and 'control_enabled' set to \"true\".\n\n" \
+                       "- Check the RPC connection settings." \
+
+            if not self.wallet_connected:
+                QMessageBox.warning(self, "Wallet closed",
+                                    "Can't connect to wallet: please open and unlock it. " +
+                                    base_msg,
+                                    QMessageBox.Ok, QMessageBox.Ok)
+                return
+
+            if self.wallet_locked:
+                QMessageBox.warning(self, "Wallet locked",
+                                    "Wallet is locked; please unlock it",
+                                    QMessageBox.Ok, QMessageBox.Ok)
+                return
+
+            else:
+                self.start_mixing()
+
         mix_btn = QPushButton('Mix!')
+        mix_btn.clicked.connect(_check_wallet)
         settings_btn = QPushButton('Settings')
 
         def _show_config():
@@ -187,6 +211,9 @@ class RaimixerGUI(QMainWindow):
         pixelsWide = fm.width(text)
         pixelsHigh = fm.height()
         line_edit.setFixedSize(pixelsWide, pixelsHigh)
+
+    def start_mixing(self):
+        print("XXX STARTING MIXING")
 
 
 class ConfigWindow(QMainWindow):
