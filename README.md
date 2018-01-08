@@ -14,7 +14,7 @@ account using a single round of mixing and 3 mixing accounts (18 transactions in
 
 ## IMPORTANT
 
-This is not finished. It needs more tests, a GUI, documentation, and more
+This is not finished. It needs more tests, documentation, and more
 anonymity features.
 
 **It could also could eat your funds alive and leave you poor and homeless. 
@@ -84,18 +84,25 @@ randomized some things, but a typical 4-accounts, 2 rounds mixing produces about
 
 ```bash
 pip install raimixer
+pip install pyqt5 # only if you want to use the GUI
 ```
 
 ## How to use
 
 Note: [**Python 3.6 required**](https://www.python.org/downloads/release/python-364/).
 
-Edit your `~/RaiBlocks/config.json` and set to `"true"` the settings called
+First, edit your `~/RaiBlocks/config.json` and set to `"true"` the settings called
 `enable_control` and `rpc_enable`. The close and reopen your wallet or node 
 and unlock it. It must remain running while this script runs. The program will
 remind you if either of these things is not done.
 
-Simple example:
+The program can be used in command line or GUI modes. For the GUI, just run:
+
+```
+raimixer --gui
+```
+
+The simplest example of the command line mode would be:
 
 ```bash
 raimixer <destination_account> <ammount>
@@ -180,7 +187,6 @@ optional arguments:
 
 ## Roadmap
 
-- Optional Qt GUI.
 - Windows portable .exe file.
 - Testing framework emulating the node.
 - Better documentation.
