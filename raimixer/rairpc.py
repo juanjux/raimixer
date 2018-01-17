@@ -20,7 +20,8 @@ from typing import Tuple, List, Dict, Any, Optional
 import requests
 
 
-class RaiRPCException(Exception): pass
+class RaiRPCException(Exception):
+    pass
 
 
 WAIT_TIMEOUT = 20
@@ -53,7 +54,7 @@ class RaiRPC:
 
     def set_representative(self, account, representative):
         self._callrpc(action='account_representative_set', wallet=self.wallet,
-                account=account, representative=representative)
+                      account=account, representative=representative)
 
     def delete_account(self, account: str) -> bool:
         res = self._callrpc(action='account_remove', wallet=self.wallet, account=account)
@@ -120,7 +121,8 @@ class RaiRPC:
 
     def _callrpc(self, **kwargs) -> Dict[str, Any]:
         headers = {'content-type': 'application/json'}
-        response = requests.post(self.url, data=json.dumps(kwargs), headers=headers).json()
+        response = requests.post(self.url, data=json.dumps(kwargs).encode(),
+                                 headers=headers).json()
 
         if "error" in response:
             raise RaiRPCException(response['error'])

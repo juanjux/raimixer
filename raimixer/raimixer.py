@@ -20,7 +20,6 @@ import raimixer.rairpc as rairpc
 from raimixer.utils import DONATE_ADDR
 
 # TODO: precalculate the mixin rounds so I can show a nice progress bar of each round
-# TODO: kosher Python package
 # TODO: more tests
 
 
@@ -33,10 +32,8 @@ class WalletLockedException(Exception):
 
 
 class RaiMixer:
-    # TODO: define better arguments for init and start, or remove start()
-
     def __init__(self, wallet: str, num_mix_accounts: int=5, num_rounds: int=4,
-                 rpc: Optional[rairpc.RaiRPC] = None) -> None:
+            rpc: Optional[rairpc.RaiRPC] = None) -> None:
 
         assert(num_mix_accounts > 1)
         assert(num_rounds > 0)
@@ -54,11 +51,11 @@ class RaiMixer:
         self.print_func = func
 
     def start(self, orig_account: str, dest_account: str, real_tosend: int,
-              initial_tosend: int, final_send_from_multiple: bool,
-              representatives: List[str]) -> None:
+            initial_tosend: int, final_send_from_multiple: bool,
+            representatives: List[str]) -> None:
 
         if type(real_tosend) != int or type(initial_tosend) != int:
-                raise RaiMixerException('real_tosend and initial_tosend must be integers')
+            raise RaiMixerException('real_tosend and initial_tosend must be integers')
 
         self.orig_account             = orig_account
         self.dest_account             = dest_account
@@ -117,7 +114,7 @@ class RaiMixer:
         self.balances[self.dest_account] = 0
 
     def _send_one_to_many(self, from_: str, dests: List[str],
-                          max_send: Optional[int] = None) -> None:
+            max_send: Optional[int] = None) -> None:
         # from_ could be in dests. This is not a bug but allows for letting some
         # amount in the from_ account if the caller want that to happen (like when mixing)
 
@@ -128,7 +125,7 @@ class RaiMixer:
                 self._send(from_, dests[idx], am)
 
     def _send_many_to_one(self, froms: List[str], dest: str,
-                          max_send: Optional[int] = None) -> None:
+            max_send: Optional[int] = None) -> None:
         already_sent = 0
 
         for acc in froms:
@@ -162,11 +159,11 @@ class RaiMixer:
             self.balances[dest] += amount
             self.tx_counter     += 1
             self.rpc.send_and_receive(orig, dest, amount)
-        except:
+        except Exception as e:
             self.balances[orig] = initial_tosend
             self.balances[dest] = real_tosend
             self.tx_counter    -= 1
-            raise
+            raise e
 
         self.print_func("\nSending {} KRAI from [...{}] to [...{}]".format(
             amount // rairpc.KRAI_TO_RAW, orig[-8:], dest[-8:]))
@@ -210,7 +207,7 @@ class RaiMixer:
 
         self.print_func('\nSending to destination account...')
         self._send_many_to_one(self.mix_accounts + [self.orig_account],
-                               self.dest_account, self.real_tosend)
+                self.dest_account, self.real_tosend)
 
         # Send the rest back to the orig account
         if self.initial_tosend > self.real_tosend:
