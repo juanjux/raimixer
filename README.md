@@ -1,9 +1,10 @@
 <img src="https://raw.githubusercontent.com/juanjux/raimix/master/img/logo.png" 
  alt="RaiMixer logo" title="RaiMixer" align="right" width=180px />
 
-# RaiMixer
+# RaiMixer: local transaction scrambler for Raiblocks
 
-## Demo
+<img src="https://raw.githubusercontent.com/juanjux/raimix/master/img/gui.png" 
+ alt="RaiMixer GUI" title="RaiMixer" align="right" width=180px />
 
 This video shows a simple session using RaiMixer to send a transaction to a destination
 account using a single round of mixing and 3 mixing accounts (18 transactions in total):
@@ -134,10 +135,12 @@ delete any account.)
 ## Other options
 
 ```bash
+
 raimixer --help
 
-usage: raimixer [-h] [-w WALLET] [-s SOURCE_ACC] [-c] [-i INITIAL_AMOUNT] [-m]
-                [-n NUM_MIXERS] [-r NUM_ROUNDS] [-u RPC_ADDRESS] [-p RPC_PORT]
+usage: raimixer [-h] [-w WALLET] [-s SOURCE_ACC] [-c] [-d] [-i INITIAL_AMOUNT]
+                [-m] [-l] [-n NUM_MIXERS] [-r NUM_ROUNDS] [-u RPC_ADDRESS]
+                [-p RPC_PORT] [-g]
                 [dest_acc] [amount]
 
  ____       _ __  __ _
@@ -153,15 +156,15 @@ Example usage:
 
 raimixer xrb_3zq1yrhgij8ix35yf1khehzwfiz9ojjotndtqprpyymixxwxnkhn44qgqmy5 10xrb
 
-If this software is useful to you, consider donating to the author:
+If this software is useful to you, consider donating to the author's rai-funds!
 
 xrb_3usnd3kirzfudprd3tceauh3sejxpfm754jgnjajbttrefx9obgdqe69wfcf
 
 (Thank you!❤)
 
 positional arguments:
-  dest_acc              Destination account (mandatory except on --clean)
-  amount                Amount. Use xrb/mrai or krai sufixes for mega/kilo rai (mandatory except for --clean)
+  dest_acc              Destination account (mandatory except on --consolidate)
+  amount                Amount. Use xrb/mrai or krai sufixes for mega/kilo rai (mandatory except for --consolidate)
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -169,12 +172,15 @@ optional arguments:
                         User wallet ID (default: from Rai config)
   -s SOURCE_ACC, --source_acc SOURCE_ACC
                         Source account (default: from Rai config)
-  -c, --clean           Move everything to the source account. Useful after node crashes.
+  -c, --consolidate     Move everything to the source account. Useful after node crashes.
+  -d, --delete_empty    Delete empty accounts
   -i INITIAL_AMOUNT, --initial_amount INITIAL_AMOUNT
                         Initial amount to mix. Helps masking transactions. Must be greater
                         than "amount". Rest will be returned to source account (default: equal to "amount")
   -m, --dest_from_multiple
                         Send to the final destination from various mixing account
+  -l, --leave_remainder
+                        Leave excess amount in the mixing accounts (don't return to main account at the end)
   -n NUM_MIXERS, --num_mixers NUM_MIXERS
                         Number of mixing accounts to create (default=4)
   -r NUM_ROUNDS, --num_rounds NUM_ROUNDS
@@ -183,6 +189,7 @@ optional arguments:
                         RPC address (default: from Rai config)
   -p RPC_PORT, --rpc_port RPC_PORT
                         RPC port (default: from Rai config)
+  -g, --gui             Start the GUI (needs PyQt5 correctly installed)
 ```
 
 ## Roadmap
