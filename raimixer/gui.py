@@ -13,28 +13,28 @@
 
 # Copyright 2017-2018 Juanjo Alvarez
 
-import sys
-from typing import Tuple, Dict, List
+from typing import Dict, List
 
 from raimixer.raimixer import RaiMixer
 from raimixer.config import read_raimixer_config, write_raimixer_config
 from raimixer.rairpc import RaiRPC, MRAI_TO_RAW, KRAI_TO_RAW
+from raimixer.utils import consolidate, delete_empty_accounts
 
 from PyQt5.QtWidgets import (
-        QWidget, QVBoxLayout, QHBoxLayout, QFormLayout, QPushButton, QApplication,
+        QWidget, QVBoxLayout, QHBoxLayout, QFormLayout, QPushButton,
         QGroupBox, QLabel, QLineEdit, QSpinBox, QComboBox, QTextBrowser,
         QCheckBox, QMainWindow, QMessageBox
 )
 from PyQt5.QtGui import QFont, QFontMetrics, QTextCursor
-from PyQt5.QtCore import QObject, pyqtSignal, pyqtSlot, QTimer, QThread
+from PyQt5.QtCore import pyqtSignal, QTimer, QThread
 from requests import ConnectionError
 
 # TODO: checkbox "randomly use balance from all accounts"
+# TODO: checkbox "use all" next to "amount to increase"
 # TODO: remove the mixing settings in the main GUI
 # TODO: progress bar
 # TODO: tooltips
-# TODO: change mix button for cancel button during mixing
-# TODO: button for the --clean option
+# TODO: move the settings and the wrappers to another file, move all under gui/ dir
 
 MRAI_TEXT = 'XRB/MRAI'
 KRAI_TEXT = 'KRAI'
@@ -76,6 +76,8 @@ class RaimixerGUI(QMainWindow):
         self.create_mix_box()
         self.create_walletstatus_box()
         self.main_layout.addLayout(self.mixwallet_layout)
+
+        self.create_consolidate_box()
 
         self.create_buttons_box()
         self.create_log_box()
@@ -223,6 +225,23 @@ class RaimixerGUI(QMainWindow):
         walletstatus_groupbox.setLayout(walletstatus_layout)
         self.mixwallet_layout.addWidget(walletstatus_groupbox)
 
+    def create_consolidate_box(self):
+        consolidate_groupbox = QGroupBox('Cleanup')
+        consolidate_vbox = QVBoxLayout()
+
+        consolidate_lbl = QLabel('Use this button to move '
+            'all balances to the main account.')
+        self.consolidate_btn = QPushButton('Consolidate')
+        self.consolidate_btn.clicked.connect(self.start_consolitating)
+        self.delete_empty_check = QCheckBox('Also delete empty accounts')
+
+        consolidate_vbox.addWidget(consolidate_lbl)
+        consolidate_vbox.addWidget(self.consolidate_btn)
+        consolidate_vbox.addWidget(self.delete_empty_check)
+
+        consolidate_groupbox.setLayout(consolidate_vbox)
+        self.main_layout.addWidget(consolidate_groupbox)
+
     def create_buttons_box(self):
         buttons_groupbox = QGroupBox()
         buttons_layout   = QHBoxLayout()
@@ -333,6 +352,11 @@ class RaimixerGUI(QMainWindow):
 
         self.start_mixing()
 
+    def _add_text(self, txt):
+        self.log_text.append(str(txt))
+        cursor = self.log_text.textCursor()
+        cursor.movePosition(QTextCursor.End, QTextCursor.MoveAnchor)
+
     def start_mixing(self):
         from raimixer.utils import normalize_amount, NormalizeAmountException
 
@@ -360,20 +384,14 @@ class RaimixerGUI(QMainWindow):
             initial_tosend,
             self.config_window.mix_sendmultiple_check.isChecked(),
             self.config_window.mix_leaveremainder_check.isChecked(),
-            # XXX leave_remainder
             self.raiconfig['representatives']
         )
 
-        def add_text(txt):
-            self.log_text.append(txt)
-            cursor = self.log_text.textCursor()
-            cursor.movePosition(QTextCursor.End, QTextCursor.MoveAnchor)
-
-        self.guimixer.text_available.connect(add_text)
+        self.guimixer.text_available.connect(self._add_text)
 
         def mix_cancel():
             self.guimixer.terminate()
-            add_text("\nMixing cancelled by user.")
+            self._add_text("\nMixing cancelled by user.")
             QMessageBox.information(self, 'Mixing Cancelled',
                             "Mixing cancelled. Use the 'Consolidate' button in the " +
                             "Settings window to move all the funds to your main account.",
@@ -388,7 +406,7 @@ class RaimixerGUI(QMainWindow):
             self._update_accounts_combo()
 
         def mix_success():
-            QMessageBox.information(self, "Sucess!",
+            QMessageBox.information(self, "Success!",
                              "Mixing successfully completed and sent!",
                              QMessageBox.Ok, QMessageBox.Ok)
             self.accounts_loaded = False
@@ -400,7 +418,7 @@ class RaimixerGUI(QMainWindow):
             QMessageBox.warning(self, "Problem!",
                     f"There was an error while mixing:\n{msg}\n"
                      "Check the text log. You can recover the amounts to the "
-                     "main account with the --clean option.",
+                     "main account with the Consolidate button.",
                     QMessageBox.Ok, QMessageBox.Ok)
             self.accounts_loaded = False
             restore_gui()
@@ -412,6 +430,41 @@ class RaimixerGUI(QMainWindow):
         self.mix_btn.clicked.disconnect(self._check_mixable)
         self.mix_btn.clicked.connect(mix_cancel)
         self.guimixer.start()
+
+    def start_consolitating(self):
+        from raimixer.config import get_raiblocks_config
+
+        raiconfig = get_raiblocks_config()
+
+        self.guicons = RaiCleanThreadWrapper(
+            raiconfig["wallet"],
+            self._get_selected_account(),
+            self.delete_empty_check.isChecked()
+        )
+        self.guicons.text_available.connect(self._add_text)
+
+        def consolidate_success():
+            self._add_text('\nConsolidation completed. Refresh wallet to see the changes.')
+            QMessageBox.information(self, "Success!",
+                                    "Consolidation successfully completed",
+                                    QMessageBox.Ok, QMessageBox.Ok)
+            self.mix_btn.setEnabled(True)
+
+        self.guicons.consolidate_finished.connect(consolidate_success)
+
+        def consolidate_error(msg):
+            QMessageBox.warning(
+                self, "Problem!",
+                f"There was an error while consolidating the amounts: {msg} "
+                "Check the text log.",
+                QMessageBox.Ok, QMessageBox.Ok
+            )
+            self.mix_btn.setEnabled(True)
+
+        self.log_groupbox.setHidden(False)
+        self.mix_btn.setEnabled(False)
+        self.guicons.consolidate_problem.connect(consolidate_error)
+        self.guicons.start()
 
 
 class ConfigWindow(QMainWindow):
@@ -485,21 +538,18 @@ class ConfigWindow(QMainWindow):
 
         self.mix_sendmultiple_check = QCheckBox('Send to the final destination from several '
                                                 'mixing accounts')
-        # XXX initial state from settings
-        self.mix_sendmultiple_check.setChecked(False)
+        self.mix_sendmultiple_check.setChecked(self.options.dest_from_multiple)
         mix_layout.addRow(self.mix_sendmultiple_check)
 
         self.mix_leaveremainder_check = QCheckBox('Leave the remainder balance in the '
                                                   'mixing accounts')
-        # XXX initial state from settings
-        self.mix_leaveremainder_check.setChecked(False)
+        self.mix_leaveremainder_check.setChecked(self.options.leave_remainder)
         mix_layout.addRow(self.mix_leaveremainder_check)
 
         mix_numrounds_lbl       = QLabel('Rounds:')
         self.mix_numrounds_spin = QSpinBox()
         self.mix_numrounds_spin.setValue(2)
         mix_layout.addRow(mix_numrounds_lbl, self.mix_numrounds_spin)
-
 
         mix_groupbox.setLayout(mix_layout)
         self.main_layout.addWidget(mix_groupbox)
@@ -514,6 +564,7 @@ class ConfigWindow(QMainWindow):
                 'rpc_port': self.port_edit.text(),
                 'num_mixer_accounts': self.mix_numaccounts_spin.cleanText(),
                 'dest_from_multiple': self.mix_sendmultiple_check.isChecked(),
+                'leave_remainder': self.mix_leaveremainder_check.isChecked(),
                 'num_mixing_rounds': self.mix_numrounds_spin.cleanText(),
                 'unit': 'mrai' if self.unit_combo.currentText() == MRAI_TEXT else 'krai'
             }
@@ -561,7 +612,7 @@ class RaiMixerThreadWrapper(QThread):
         self.real_tosend              = real_tosend
         self.initial_tosend           = initial_tosend
         self.final_send_from_multiple = final_send_from_multiple
-        self.leave_reminder           = leave_remainder
+        self.leave_remainder           = leave_remainder
         self.representatives          = representatives
 
     def run(self):
@@ -571,8 +622,33 @@ class RaiMixerThreadWrapper(QThread):
                              self.real_tosend,
                              self.initial_tosend,
                              self.final_send_from_multiple,
-                             self.leave_reminder,
+                             self.leave_remainder,
                              self.representatives)
             self.mixing_finished.emit()
         except Exception as e:
             self.mixing_problem.emit(str(e))
+
+
+class RaiCleanThreadWrapper(QThread):
+
+    text_available  = pyqtSignal(object)
+    consolidate_finished  = pyqtSignal()
+    consolidate_problem   = pyqtSignal(object)
+
+    def __init__(self, wallet, account, delete_empty=False) -> None:
+        QThread.__init__(self)
+        self.wallet       = wallet
+        self.account      = account
+        self.delete_empty = delete_empty
+
+    def run(self):
+        try:
+            consolidate(self.wallet, self.account,
+                        print_func=lambda txt: self.text_available.emit(txt))
+
+            if self.delete_empty:
+                delete_empty_accounts(self.wallet, self.account,
+                        print_func=lambda txt: self.text_available.emit(txt))
+            self.consolidate_finished.emit()
+        except Exception as e:
+            self.consolidate_problem.emit(str(e))

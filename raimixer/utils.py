@@ -13,7 +13,11 @@
 
 # Copyright 2017-2018 Juanjo Alvarez
 
-DONATE_ADDR = 'xrb_188nhspq7gottxurg598m6zc7zcuxfy74u65hgjdfc6yscmg38mekesxx4ub'
+from typing import Optional
+
+import raimixer.rairpc as rairpc
+
+DONATE_ADDR = 'xrb_3usnd3kirzfudprd3tceauh3sejxpfm754jgnjajbttrefx9obgdqe69wfcf'
 
 
 # TODO: unittest
@@ -51,5 +55,37 @@ def normalize_amount(amount: str, multiplier: int) -> int:
         return int(amount) * (multiplier // (10 ** divider))
 
     return int(amount) * multiplier
+
+
+def consolidate(wallet: str, account: str, rpc: Optional[rairpc.RaiRPC]=None,
+                print_func=print):
+    if not rpc:
+        rpc = rairpc.RaiRPC(account, wallet)
+    accounts = rpc.list_accounts()
+
+    for acc in accounts:
+        if acc == account:
+            continue
+
+        balance = rpc.account_balance(acc)[0]
+        if balance > 0:
+            print_func(f'{acc} -> {account}')
+            rpc.send_and_receive(acc, account, balance)
+
+
+def delete_empty_accounts(wallet: str, account: str, rpc: Optional[rairpc.RaiRPC]=None,
+                          print_func=print):
+    if not rpc:
+        rpc = rairpc.RaiRPC(account, wallet)
+    accounts = rpc.list_accounts()
+
+    for acc in accounts:
+        if acc == account:
+            continue
+
+        balance = rpc.account_balance(acc)[0]
+        if balance == 0:
+            print_func(f'Deleting empty account {acc}')
+            rpc.delete_account(acc)
 
 

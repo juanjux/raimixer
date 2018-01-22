@@ -15,7 +15,8 @@
 
 import raimixer.rairpc as rairpc
 from raimixer.raimixer import RaiMixer, WalletLockedException
-from raimixer.utils import normalize_amount, NormalizeAmountException, DONATE_ADDR
+from raimixer.utils import (normalize_amount, NormalizeAmountException, DONATE_ADDR,
+                           consolidate, delete_empty_accounts)
 
 import sys
 from textwrap import dedent
@@ -123,35 +124,6 @@ def parse_options(raiconfig: Dict[str, Any]) -> Any:
     return options
 
 
-def consolidate(wallet, account, delete_empty):
-    rpc = rairpc.RaiRPC(account, wallet)
-    accounts = rpc.list_accounts()
-
-    for acc in accounts:
-        if acc == account:
-            continue
-
-        balance = rpc.account_balance(acc)[0]
-        if balance > 0:
-            print(balance)
-            print(f'{acc} -> {account}')
-            rpc.send_and_receive(acc, account, balance)
-
-
-def delete_empty(wallet, account):
-    rpc = rairpc.RaiRPC(account, wallet)
-    accounts = rpc.list_accounts()
-
-    for acc in accounts:
-        if acc == account:
-            continue
-
-        balance = rpc.account_balance(acc)[0]
-        if balance == 0:
-            print(f'Deleting empty account {acc}')
-            rpc.delete_account(acc)
-
-
 def print_amount_help() -> None:
     print(dedent('''
     Help on amounts:
@@ -221,10 +193,10 @@ def main():
 
     try:
         if options.consolidate:
-            consolidate(options.wallet, options.source_acc, options.delete_empty)
+            consolidate(options.wallet, options.source_acc)
 
         if options.delete_empty:
-            delete_empty(options.wallet, options.source_acc)
+            delete_empty_accounts(options.wallet, options.source_acc)
 
         if options.consolidate or options.delete_empty:
             sys.exit(0)

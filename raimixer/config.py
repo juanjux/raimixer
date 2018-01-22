@@ -79,6 +79,7 @@ def _get_default_config() -> Dict[str, object]:
         'rpc_port': rai_config['rpc_port'],
         'num_mixer_accounts': '4',
         'dest_from_multiple': False,
+        'leave_remainder': False,
         'num_mixing_rounds': '2',
         'unit': 'mrai',
         'version': str(__version__)

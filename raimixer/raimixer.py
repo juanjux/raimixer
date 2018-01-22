@@ -17,7 +17,7 @@ import random
 from typing import List, Dict, Optional
 
 import raimixer.rairpc as rairpc
-from raimixer.utils import DONATE_ADDR
+from raimixer.utils import DONATE_ADDR, delete_empty_accounts
 
 # TODO: precalculate the mixin rounds so I can show a nice progress bar of each round
 # TODO: more tests
