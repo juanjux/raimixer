@@ -56,10 +56,10 @@ def parse_options(raiconfig: Dict[str, Any]) -> Any:
         ), formatter_class=RawTextHelpFormatter)
 
     parser.add_argument('dest_acc', type=str, nargs='?',
-        help='Destination account (mandatory except on --clean)')
+        help='Destination account (mandatory except on --consolidate)')
 
     parser.add_argument('amount', type=str, nargs='?',
-        help='Amount. Use xrb/mrai or krai sufixes for mega/kilo rai (mandatory except for --clean)')
+        help='Amount. Use xrb/mrai or krai sufixes for mega/kilo rai (mandatory except for --consolidate)')
 
     parser.add_argument('-w', '--wallet', type=str, default=raiconfig['wallet'],
         help='User wallet ID (default: from Rai config)')
@@ -67,11 +67,11 @@ def parse_options(raiconfig: Dict[str, Any]) -> Any:
     parser.add_argument('-s', '--source_acc', type=str, default=raiconfig['default_account'],
         help='Source account (default: from Rai config)')
 
-    parser.add_argument('-c', '--clean', action='store_true', default=False,
+    parser.add_argument('-c', '--consolidate', action='store_true', default=False,
         help='Move everything to the source account. Useful after node crashes.')
 
     parser.add_argument('-d', '--delete_empty', action='store_true', default=False,
-        help='Delete empty accounts after --clean')
+        help='Delete empty accounts')
 
     parser.add_argument('-i', '--initial_amount', type=str,
         help='Initial amount to mix. Helps masking transactions. Must be greater\n'
@@ -100,7 +100,7 @@ def parse_options(raiconfig: Dict[str, Any]) -> Any:
 
     options = parser.parse_args()
 
-    if options.clean:
+    if options.consolidate:
         options.dest_acc = 'foo'
         options.amount = 'foo'
 
@@ -123,7 +123,7 @@ def parse_options(raiconfig: Dict[str, Any]) -> Any:
     return options
 
 
-def clean(wallet, account, delete_empty):
+def consolidate(wallet, account, delete_empty):
     rpc = rairpc.RaiRPC(account, wallet)
     accounts = rpc.list_accounts()
 
@@ -220,13 +220,13 @@ def main():
         HAS_GUI = False
 
     try:
-        if options.clean:
-            clean(options.wallet, options.source_acc, options.delete_empty)
+        if options.consolidate:
+            consolidate(options.wallet, options.source_acc, options.delete_empty)
 
         if options.delete_empty:
             delete_empty(options.wallet, options.source_acc)
 
-        if options.clean or options.delete_empty:
+        if options.consolidate or options.delete_empty:
             sys.exit(0)
 
         rpc = rairpc.RaiRPC(options.source_acc, options.wallet,
