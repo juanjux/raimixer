@@ -18,7 +18,10 @@ from sys import platform
 import os
 import json
 
+from raimixer.version import __version__
+
 CONFIG_FILENAME = 'raimixer_conf.json'
+
 
 class ConfigException(Exception):
     pass
@@ -62,27 +65,49 @@ def maybe_create_confdir() -> str:
     return raimixer_config_dir
 
 
-def write_raimixer_config(confdict: Dict[str, str]) -> None:
+def write_raimixer_config(confdict: Dict[str, object]) -> None:
     raimixer_conf = os.path.join(maybe_create_confdir(), CONFIG_FILENAME)
     with open(raimixer_conf, 'w') as raimix_file:
+        confdict['version'] = __version__
         raimix_file.write(json.dumps(confdict, indent=4))
 
 
-def read_raimixer_config() -> Dict[str, str]:
-    config: Dict[str, str] = {}
+def _get_default_config() -> Dict[str, object]:
+    rai_config = get_raiblocks_config()
+    config = {
+        'rpc_address': rai_config['rpc_address'],
+        'rpc_port': rai_config['rpc_port'],
+        'num_mixer_accounts': '4',
+        'dest_from_multiple': False,
+        'num_mixing_rounds': '2',
+        'unit': 'mrai',
+        'version': str(__version__)
+    }
+    return config
+
+
+def _upgrade_config(conf: Dict[str, object]):
+    default_conf = _get_default_config()
+    changed = False
+
+    for def_key in default_conf:
+        if def_key not in conf:
+            print(f'Upgrading config file with new setting "{def_key}"...')
+            conf[def_key] = default_conf[def_key]
+            changed = True
+
+    if changed:
+        write_raimixer_config(conf)
+
+
+def read_raimixer_config() -> Dict[str, object]:
+    config: Dict[str, object] = {}
     raimixer_conf = os.path.join(maybe_create_confdir(), CONFIG_FILENAME)
 
-    def write_default_config() -> Dict[str, str]:
-        rai_config = get_raiblocks_config()
-        config = {
-            'rpc_address': rai_config['rpc_address'],
-            'rpc_port': rai_config['rpc_port'],
-            'num_mixer_accounts': '4',
-            'num_mixing_rounds': '2',
-            'unit': 'mrai'
-        }
-        write_raimixer_config(config)
-        return config
+    def write_default_config() -> Dict[str, object]:
+        default_conf = _get_default_config()
+        write_raimixer_config(default_conf)
+        return default_conf
 
     if not os.path.exists(raimixer_conf):
         config = write_default_config()
@@ -93,11 +118,12 @@ def read_raimixer_config() -> Dict[str, str]:
                 config = write_default_config()
             else:
                 config = json.loads(fcontent)
+                _upgrade_config(config)
 
     return config
 
 
-def get_raiblocks_config() -> Dict[str, str]:
+def get_raiblocks_config() -> Dict[str, object]:
     rai_config: Dict[str, Any] = {}
     config: Dict[str, Any] = {}
 

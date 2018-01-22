@@ -181,7 +181,7 @@ def convert_amount(amount):
 
 
 def main():
-    from raimixer.read_raiconfig import get_raiblocks_config
+    from raimixer.config import get_raiblocks_config
     from requests.exceptions import ConnectionError
 
     raiconfig = get_raiblocks_config()

@@ -17,7 +17,7 @@ import sys
 from typing import Tuple, Dict, List
 
 from raimixer.raimixer import RaiMixer
-from raimixer.read_raiconfig import read_raimixer_config, write_raimixer_config
+from raimixer.config import read_raimixer_config, write_raimixer_config
 from raimixer.rairpc import RaiRPC, MRAI_TO_RAW, KRAI_TO_RAW
 
 from PyQt5.QtWidgets import (
@@ -35,6 +35,7 @@ from requests import ConnectionError
 # TODO: tooltips
 # TODO: change mix button for cancel button during mixing
 # TODO: button for the --clean option
+# TODO: add the --dest_from_multiple option to the settings window
 
 MRAI_TEXT = 'XRB/MRAI'
 KRAI_TEXT = 'KRAI'
@@ -353,8 +354,14 @@ class RaimixerGUI(QMainWindow):
             return
 
         self.guimixer = RaiMixerThreadWrapper(rai)
-        self.guimixer.set_start_params(self._get_selected_account(), self.dest_edit.text(),
-                  tosend, initial_tosend, False, self.raiconfig['representatives'])
+        self.guimixer.set_start_params(
+            self._get_selected_account(),
+            self.dest_edit.text(),
+            tosend,
+            initial_tosend,
+            self.config_window.mix_sendmultiple_check.isChecked(),
+            self.raiconfig['representatives']
+        )
 
         def add_text(txt):
             self.log_text.append(txt)
@@ -426,6 +433,7 @@ class ConfigWindow(QMainWindow):
         self.addr_edit.setText(raimixer_conf['rpc_address'])
         self.port_edit.setText(raimixer_conf['rpc_port'])
         self.mix_numaccounts_spin.setValue(int(raimixer_conf['num_mixer_accounts']))
+        self.mix_sendmultiple_check.setChecked(raimixer_conf['dest_from_multiple'])
         self.mix_numrounds_spin.setValue(int(raimixer_conf['num_mixing_rounds']))
 
         unit = raimixer_conf['unit'].lower()
@@ -462,10 +470,22 @@ class ConfigWindow(QMainWindow):
         self.mix_numaccounts_spin.setValue(4)
         mix_layout.addRow(mix_numaccounts_lbl, self.mix_numaccounts_spin)
 
+        self.mix_sendmultiple_check = QCheckBox('Send to the final destination from several '
+                                                'mixing accounts')
+        self.mix_sendmultiple_check.setChecked(False)
+        mix_layout.addRow(self.mix_sendmultiple_check)
+
+        # self.mix_leaveremainder_check = QCheckBox('Leave the remainder balance in the '
+                                                  # 'mixing accounts')
+        # XXX save/read from settings
+        # self.mix_leaveremainder_check.setChecked(False)
+        # mix_layout.addRow(self.mix_leaveremainder_check)
+
         mix_numrounds_lbl       = QLabel('Rounds:')
         self.mix_numrounds_spin = QSpinBox()
         self.mix_numrounds_spin.setValue(2)
         mix_layout.addRow(mix_numrounds_lbl, self.mix_numrounds_spin)
+
 
         mix_groupbox.setLayout(mix_layout)
         self.main_layout.addWidget(mix_groupbox)
@@ -479,6 +499,7 @@ class ConfigWindow(QMainWindow):
                 'rpc_address': self.addr_edit.text(),
                 'rpc_port': self.port_edit.text(),
                 'num_mixer_accounts': self.mix_numaccounts_spin.cleanText(),
+                'dest_from_multiple': self.mix_sendmultiple_check.isChecked(),
                 'num_mixing_rounds': self.mix_numrounds_spin.cleanText(),
                 'unit': 'mrai' if self.unit_combo.currentText() == MRAI_TEXT else 'krai'
             }
