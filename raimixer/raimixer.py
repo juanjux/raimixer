@@ -51,8 +51,8 @@ class RaiMixer:
         self.print_func = func
 
     def start(self, orig_account: str, dest_account: str, real_tosend: int,
-            initial_tosend: int, final_send_from_multiple: bool,
-            representatives: List[str]) -> None:
+              initial_tosend: int, final_send_from_multiple: bool, leave_remainder: bool,
+              representatives: List[str]) -> None:
 
         if type(real_tosend) != int or type(initial_tosend) != int:
             raise RaiMixerException('real_tosend and initial_tosend must be integers')
@@ -62,6 +62,7 @@ class RaiMixer:
         self.initial_tosend           = initial_tosend
         self.real_tosend              = real_tosend
         self.final_send_from_multiple = final_send_from_multiple
+        self.leave_remainder          = leave_remainder
         self.representatives          = representatives
 
         if self.rpc is None:
@@ -91,7 +92,8 @@ class RaiMixer:
         self.print_func(f'\nDone! Total transactions done: {self.tx_counter}')
         self.print_func('If you like this program consideer donating to the author:')
         self.print_func(f'{DONATE_ADDR}')
-        assert(self.balances[self.orig_account] == self.initial_tosend - self.real_tosend)
+        if not self.leave_remainder:
+            assert(self.balances[self.orig_account] == self.initial_tosend - self.real_tosend)
         assert(self.balances[self.dest_account] == self.real_tosend)
 
         self._delete_accounts()
@@ -103,8 +105,10 @@ class RaiMixer:
 
     def _delete_accounts(self):
         for acc in self.mix_accounts:
-            assert(self.rpc.account_balance(acc)[0] == 0)
-            self.rpc.delete_account(acc)
+            if self.rpc.account_balance(acc) == 0:
+                self.rpc.delete_account(acc)
+            else:
+                self.print_func(f'Not deleting account {acc} because has non zero balance')
 
     def _load_balances(self) -> None:
         for acc in self.mix_accounts:
@@ -210,9 +214,12 @@ class RaiMixer:
                 self.dest_account, self.real_tosend)
 
         # Send the rest back to the orig account
-        if self.initial_tosend > self.real_tosend:
-            self.print_func('\nSending remaining balance back to the orig account...')
-            self._send_many_to_one(self.mix_accounts, self.orig_account)
+        if not self.leave_remainder:
+            if self.initial_tosend > self.real_tosend:
+                self.print_func('\nSending remaining balance back to the orig account...')
+                self._send_many_to_one(self.mix_accounts, self.orig_account)
+        else:
+            self.print_func('\nLeaving excess balance in mixing accounts')
 
     def _random_amounts_split(self, total: int, num_accounts: int) -> List[int]:
         # loop calculating a random amount from 0 to 1/3 of the remainder until

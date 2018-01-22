@@ -70,12 +70,18 @@ def parse_options(raiconfig: Dict[str, Any]) -> Any:
     parser.add_argument('-c', '--clean', action='store_true', default=False,
         help='Move everything to the source account. Useful after node crashes.')
 
+    parser.add_argument('-d', '--delete_empty', action='store_true', default=False,
+        help='Delete empty accounts after --clean')
+
     parser.add_argument('-i', '--initial_amount', type=str,
         help='Initial amount to mix. Helps masking transactions. Must be greater\n'
         'than "amount". Rest will be returned to source account (default: equal to "amount")')
 
     parser.add_argument('-m', '--dest_from_multiple', action='store_true', default=False,
         help='Send to the final destination from various mixing account')
+
+    parser.add_argument('-l', '--leave_remainder', action='store_true', default=False,
+        help="Leave excess amount in the mixing accounts (don't return to main account at the end)")
 
     parser.add_argument('-n', '--num_mixers', type=int, default=4,
         help='Number of mixing accounts to create (default=4)')
@@ -117,7 +123,7 @@ def parse_options(raiconfig: Dict[str, Any]) -> Any:
     return options
 
 
-def clean(wallet, account):
+def clean(wallet, account, delete_empty):
     rpc = rairpc.RaiRPC(account, wallet)
     accounts = rpc.list_accounts()
 
@@ -128,8 +134,22 @@ def clean(wallet, account):
         balance = rpc.account_balance(acc)[0]
         if balance > 0:
             print(balance)
-            print('%s -> %s' % (acc, account))
+            print(f'{acc} -> {account}')
             rpc.send_and_receive(acc, account, balance)
+
+
+def delete_empty(wallet, account):
+    rpc = rairpc.RaiRPC(account, wallet)
+    accounts = rpc.list_accounts()
+
+    for acc in accounts:
+        if acc == account:
+            continue
+
+        balance = rpc.account_balance(acc)[0]
+        if balance == 0:
+            print(f'Deleting empty account {acc}')
+            rpc.delete_account(acc)
 
 
 def print_amount_help() -> None:
@@ -201,7 +221,12 @@ def main():
 
     try:
         if options.clean:
-            clean(options.wallet, options.source_acc)
+            clean(options.wallet, options.source_acc, options.delete_empty)
+
+        if options.delete_empty:
+            delete_empty(options.wallet, options.source_acc)
+
+        if options.clean or options.delete_empty:
             sys.exit(0)
 
         rpc = rairpc.RaiRPC(options.source_acc, options.wallet,
@@ -217,7 +242,7 @@ def main():
                          options.num_rounds, rpc)
 
         mixer.start(options.source_acc, options.dest_acc, send_amount,
-                    start_amount, options.dest_from_multiple,
+                    start_amount, options.dest_from_multiple, options.leave_remainder,
                     raiconfig['representatives'])
     except ConnectionError:
         print('Error: could not connect to the node, is the wallet running and '

@@ -35,7 +35,6 @@ from requests import ConnectionError
 # TODO: tooltips
 # TODO: change mix button for cancel button during mixing
 # TODO: button for the --clean option
-# TODO: add the --dest_from_multiple option to the settings window
 
 MRAI_TEXT = 'XRB/MRAI'
 KRAI_TEXT = 'KRAI'
