@@ -4,7 +4,7 @@
 # RaiMixer: local transaction scrambler for Raiblocks
 
 <img src="https://raw.githubusercontent.com/juanjux/raimix/master/img/gui.png" 
- alt="RaiMixer GUI" title="RaiMixer" align="right" width=180px />
+ alt="RaiMixer GUI" title="RaiMixer" align="left" width=640px />
 
 This video shows a simple session using RaiMixer to send a transaction to a destination
 account using a single round of mixing and 3 mixing accounts (18 transactions in total):
