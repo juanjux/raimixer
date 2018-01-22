@@ -29,7 +29,6 @@ from PyQt5.QtGui import QFont, QFontMetrics, QTextCursor
 from PyQt5.QtCore import QObject, pyqtSignal, pyqtSlot, QTimer, QThread
 from requests import ConnectionError
 
-# TODO: check/enforce min values for accounts and rounds (1)
 # TODO: checkbox "randomly use balance from all accounts"
 # TODO: remove the mixing settings in the main GUI
 # TODO: progress bar
@@ -197,11 +196,13 @@ class RaimixerGUI(QMainWindow):
         mix_numaccounts_lbl       = QLabel('Accounts:')
         self.mix_numaccounts_spin = QSpinBox()
         self.mix_numaccounts_spin.setValue(self.config_window.mix_numaccounts_spin.value())
+        self.mix_numaccounts_spin.setMinimum(1)
         mix_layout.addRow(mix_numaccounts_lbl, self.mix_numaccounts_spin)
 
         mix_numrounds_lbl       = QLabel('Rounds:')
         self.mix_numrounds_spin = QSpinBox()
         self.mix_numrounds_spin.setValue(self.config_window.mix_numrounds_spin.value())
+        self.mix_numrounds_spin.setMinimum(1)
         mix_layout.addRow(mix_numrounds_lbl, self.mix_numrounds_spin)
 
         mix_groupbox.setLayout(mix_layout)
