@@ -359,6 +359,8 @@ class RaimixerGUI(QMainWindow):
             tosend,
             initial_tosend,
             self.config_window.mix_sendmultiple_check.isChecked(),
+            self.config_window.mix_leaveremainder_check.isChecked(),
+            # XXX leave_remainder
             self.raiconfig['representatives']
         )
 
@@ -369,35 +371,47 @@ class RaimixerGUI(QMainWindow):
 
         self.guimixer.text_available.connect(add_text)
 
-        def success():
-            QMessageBox.information(self, "Sucess!",
-                             "Mixing successfully completed and sent!",
-                             QMessageBox.Ok, QMessageBox.Ok)
-            self.mix_btn.setEnabled(True)
-            self.accounts_loaded = False
+        def mix_cancel():
+            self.guimixer.terminate()
+            add_text("\nMixing cancelled by user.")
+            QMessageBox.information(self, 'Mixing Cancelled',
+                            "Mixing cancelled. Use the 'Consolidate' button in the " +
+                            "Settings window to move all the funds to your main account.",
+                            QMessageBox.Ok, QMessageBox.Ok)
+            restore_gui()
+
+        def restore_gui():
+            self.mix_btn.setText('Mix!')
+            self.mix_btn.clicked.disconnect(mix_cancel)
+            self.mix_btn.clicked.connect(self._check_mixable)
             self._update_accounts()
             self._update_accounts_combo()
 
-        self.guimixer.mixing_finished.connect(success)
+        def mix_success():
+            QMessageBox.information(self, "Sucess!",
+                             "Mixing successfully completed and sent!",
+                             QMessageBox.Ok, QMessageBox.Ok)
+            self.accounts_loaded = False
+            restore_gui()
 
-        def error(msg):
+        self.guimixer.mixing_finished.connect(mix_success)
+
+        def mix_error(msg):
             QMessageBox.warning(self, "Problem!",
                     f"There was an error while mixing:\n{msg}\n"
                      "Check the text log. You can recover the amounts to the "
                      "main account with the --clean option.",
                     QMessageBox.Ok, QMessageBox.Ok)
-            self.mix_btn.setEnabled(True)
             self.accounts_loaded = False
-            self._update_accounts()
-            self._update_accounts_combo()
+            restore_gui()
 
-        self.guimixer.mixing_problem.connect(error)
+        self.guimixer.mixing_problem.connect(mix_error)
 
         self.log_groupbox.setHidden(False)
-        self.mix_btn.setEnabled(False)
+        self.mix_btn.setText('Cancel')
+        self.mix_btn.clicked.disconnect(self._check_mixable)
+        self.mix_btn.clicked.connect(mix_cancel)
         self.guimixer.start()
-
-        # Update accounts and amounts after the mixing
 
 
 class ConfigWindow(QMainWindow):
@@ -471,14 +485,15 @@ class ConfigWindow(QMainWindow):
 
         self.mix_sendmultiple_check = QCheckBox('Send to the final destination from several '
                                                 'mixing accounts')
+        # XXX initial state from settings
         self.mix_sendmultiple_check.setChecked(False)
         mix_layout.addRow(self.mix_sendmultiple_check)
 
-        # self.mix_leaveremainder_check = QCheckBox('Leave the remainder balance in the '
-                                                  # 'mixing accounts')
-        # XXX save/read from settings
-        # self.mix_leaveremainder_check.setChecked(False)
-        # mix_layout.addRow(self.mix_leaveremainder_check)
+        self.mix_leaveremainder_check = QCheckBox('Leave the remainder balance in the '
+                                                  'mixing accounts')
+        # XXX initial state from settings
+        self.mix_leaveremainder_check.setChecked(False)
+        mix_layout.addRow(self.mix_leaveremainder_check)
 
         mix_numrounds_lbl       = QLabel('Rounds:')
         self.mix_numrounds_spin = QSpinBox()
@@ -532,21 +547,31 @@ class RaiMixerThreadWrapper(QThread):
         self.mixer = raimixer_object
         self.mixer.set_print_func(lambda txt: self.text_available.emit(txt))
 
-    def set_start_params(self, orig_account: str, dest_account: str, real_tosend: int,
-              initial_tosend: int, final_send_from_multiple: bool,
-              representatives: List[str]) -> None:
+    def set_start_params(self,
+                         orig_account: str,
+                         dest_account: str,
+                         real_tosend: int,
+                         initial_tosend: int,
+                         final_send_from_multiple: bool,
+                         leave_remainder: bool,
+                         representatives: List[str]) -> None:
 
         self.orig_account             = orig_account
         self.dest_account             = dest_account
         self.real_tosend              = real_tosend
         self.initial_tosend           = initial_tosend
         self.final_send_from_multiple = final_send_from_multiple
+        self.leave_reminder           = leave_remainder
         self.representatives          = representatives
 
     def run(self):
         try:
-            self.mixer.start(self.orig_account, self.dest_account, self.real_tosend,
-                             self.initial_tosend, self.final_send_from_multiple,
+            self.mixer.start(self.orig_account,
+                             self.dest_account,
+                             self.real_tosend,
+                             self.initial_tosend,
+                             self.final_send_from_multiple,
+                             self.leave_reminder,
                              self.representatives)
             self.mixing_finished.emit()
         except Exception as e:
