@@ -1,2 +1,2 @@
 json-rpc==1.10.8
-requests==2.20.0
+requests==2.31.0

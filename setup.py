@@ -31,7 +31,7 @@ setup(
         ]
     },
     install_requires = [
-          'requests==2.20.0'
+          'requests==2.31.0'
     ],
     extras_require = {},
     classifiers = [
